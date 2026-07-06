@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stream Cinema · Dashboard</title>
+
+  <!-- Fonts: Space Grotesk (display) + Inter (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:   "#0C0E12", // page background
+            panel: "#12151B", // cards
+            line:  "rgba(255,255,255,0.08)",
+            body:  "#EDEFF3",
+            muted: "#98A1AD",
+            amber: "#E3B04B", // projector-light accent
+          },
+          fontFamily: {
+            display: ['"Space Grotesk"', "sans-serif"],
+            sans: ["Inter", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    /* Film-strip perforation as the signature divider */
+    .sprockets {
+      height: 14px;
+      background-image: radial-gradient(
+        rgba(255, 255, 255, 0.14) 2.5px,
+        transparent 2.6px
+      );
+      background-size: 26px 14px;
+      background-position: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .poster-card img { transition: transform 0.45s cubic-bezier(0.2, 0.6, 0.2, 1); }
+    .poster-card:hover img { transform: scale(1.05); }
+    .poster-card .overlay { opacity: 0; transition: opacity 0.3s ease; }
+    .poster-card:hover .overlay,
+    .poster-card:focus-visible .overlay { opacity: 1; }
+
+    .skeleton {
+      background: linear-gradient(100deg, #12151B 40%, #1A1E26 50%, #12151B 60%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite linear;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .poster-card img, .poster-card .overlay { transition: none; }
+      .skeleton { animation: none; }
+    }
+
+    :focus-visible { outline: 2px solid #E3B04B; outline-offset: 3px; }
+  </style>
+</head>
+
+<body class="bg-ink font-sans text-body antialiased min-h-screen">
+
+  <!-- ===== Header ===== -->
+  <header class="mx-auto max-w-6xl px-5 pt-14 pb-10 sm:pt-20">
+    <p class="font-display text-[11px] font-medium uppercase tracking-[0.35em] text-amber">
+      Now showing
+    </p>
+    <h1 class="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
+      Stream Cinema
+    </h1>
+    <p class="mt-3 max-w-xl text-sm leading-relaxed text-muted">
+      Everything we've watched on stream — and what the community wants to see
+      next. Redeem a movie wish live in the points store.
+    </p>
+  </header>
+
+  <div class="sprockets" aria-hidden="true"></div>
+
+  <main class="mx-auto max-w-6xl px-5 pb-24">
+
+    <!-- Demo-mode banner (hidden by default, shown when the API isn't reachable) -->
+    <div id="demo-banner" hidden
+         class="mt-10 flex items-start gap-3 rounded-md border border-amber/40 bg-amber/10 px-4 py-3 text-sm">
+      <span aria-hidden="true">🎞️</span>
+      <p>
+        <strong class="font-semibold">Demo mode.</strong>
+        <span class="text-muted">
+          The API isn't reachable here, so you're looking at sample data.
+          Live data appears once the app is deployed on Vercel with its
+          environment variables set.
+        </span>
+      </p>
+    </div>
+
+    <!-- ===== Section 1: History ===== -->
+    <section aria-labelledby="watched-heading" class="pt-14">
+      <div class="flex items-baseline justify-between border-b border-line pb-4">
+        <h2 id="watched-heading"
+            class="font-display text-lg font-semibold tracking-wide">
+          Recently watched on stream
+        </h2>
+        <span id="watched-count" class="text-xs text-muted"></span>
+      </div>
+      <div id="watched-grid"
+           class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <!-- filled by JS -->
+      </div>
+      <p id="watched-status" class="mt-6 text-sm text-muted" hidden></p>
+    </section>
+
+    <!-- ===== Section 2: Wishlist ===== -->
+    <section aria-labelledby="wishes-heading" class="pt-20" hidden>
+      <div class="flex items-baseline justify-between border-b border-line pb-4">
+        <h2 id="wishes-heading"
+            class="font-display text-lg font-semibold tracking-wide">
+          Community wishlist
+        </h2>
+        <span class="text-xs text-muted">via points store · "Movie Wish"</span>
+      </div>
+      <div id="wishes-list"
+           class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <!-- filled by JS -->
+      </div>
+      <p id="wishes-status" class="mt-6 text-sm text-muted" hidden></p>
+    </section>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 text-xs text-muted">
+      <span>Movie data &amp; posters by <a class="underline decoration-line underline-offset-4 hover:text-body" href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a></span>
+      <span class="font-display tracking-[0.25em] uppercase">Stream Cinema</span>
+    </div>
+  </footer>
+
+  <script>
+    // ---------- Demo data (shown only when the API isn't reachable) ----------
+    const DEMO_MOVIES = [
+      { title: "Blade Runner 2049", year: "2017", genres: ["Sci-Fi", "Drama"], poster: null },
+      { title: "Whiplash", year: "2014", genres: ["Drama", "Music"], poster: null },
+      { title: "Spirited Away", year: "2001", genres: ["Animation", "Fantasy"], poster: null },
+      { title: "Mad Max: Fury Road", year: "2015", genres: ["Action"], poster: null },
+      { title: "Parasite", year: "2019", genres: ["Thriller", "Drama"], poster: null },
+      { title: "The Grand Budapest Hotel", year: "2014", genres: ["Comedy"], poster: null },
+    ];
+    const DEMO_WISHES = [
+      { title: "Dune: Part Two", year: "2024", genres: ["Sci-Fi"], poster: null, user: "moviefan_92" },
+      { title: "Everything Everywhere All at Once", year: "2022", genres: ["Adventure"], poster: null, user: "chaos_kate" },
+      { title: "Oldboy", year: "2003", genres: ["Thriller"], poster: null, user: "nightowl" },
+    ];
+
+    // ---------- Helpers ----------
+    const $ = (sel) => document.querySelector(sel);
+
+    function el(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text) node.textContent = text;
+      return node;
+    }
+
+    function posterOrPlaceholder(movie, imgClasses) {
+      if (movie.poster) {
+        const img = el("img", imgClasses);
+        img.src = movie.poster;
+        img.alt = `Movie poster: ${movie.title}`;
+        img.loading = "lazy";
+        return img;
+      }
+      // Placeholder in case TMDB has no poster (or in demo mode)
+      const ph = el(
+        "div",
+        imgClasses +
+          " flex items-center justify-center bg-panel text-center text-xs text-muted p-3"
+      );
+      ph.textContent = movie.title;
+      return ph;
+    }
+
+    // ---------- Section 1: poster grid ----------
+    function renderWatched(movies) {
+      const grid = $("#watched-grid");
+      grid.innerHTML = "";
+      $("#watched-count").textContent = movies.length
+        ? `${movies.length} movies`
+        : "";
+
+      if (!movies.length) {
+        showStatus(
+          "#watched-status",
+          "No movies yet. Add the first one in chat with !addfilm Title."
+        );
+        return;
+      }
+
+      for (const m of movies) {
+        const card = el(
+          "article",
+          "poster-card group relative overflow-hidden rounded-md border border-line bg-panel"
+        );
+        card.tabIndex = 0;
+
+        const frame = el("div", "aspect-[2/3] overflow-hidden");
+        frame.appendChild(
+          posterOrPlaceholder(m, "h-full w-full object-cover")
+        );
+        card.appendChild(frame);
+
+        // Hover overlay with year & genre
+        const overlay = el(
+          "div",
+          "overlay absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/30 to-transparent p-3"
+        );
+        overlay.appendChild(
+          el("h3", "font-display text-sm font-semibold leading-snug", m.title)
+        );
+        const meta = [m.year, ...(m.genres || [])].filter(Boolean).join(" · ");
+        if (meta) overlay.appendChild(el("p", "mt-1 text-[11px] text-muted", meta));
+        card.appendChild(overlay);
+
+        grid.appendChild(card);
+      }
+    }
+
+    // ---------- Section 2: wishlist ----------
+    function renderWishes(wishes) {
+      const list = $("#wishes-list");
+      list.innerHTML = "";
+
+      if (!wishes.length) {
+        showStatus(
+          "#wishes-status",
+          "No wishes yet. Redeem the \u201CMovie Wish\u201D item in the points store and enter your title."
+        );
+        return;
+      }
+
+      for (const w of wishes) {
+        const card = el(
+          "article",
+          "flex gap-4 rounded-md border border-line bg-panel p-3 transition-colors hover:border-amber/40"
+        );
+
+        const thumb = el("div", "h-24 w-16 shrink-0 overflow-hidden rounded-sm");
+        thumb.appendChild(posterOrPlaceholder(w, "h-full w-full object-cover"));
+        card.appendChild(thumb);
+
+        const info = el("div", "min-w-0 py-1");
+        info.appendChild(
+          el("h3", "truncate font-display text-sm font-semibold", w.title)
+        );
+        const meta = [w.year, ...(w.genres || [])].filter(Boolean).join(" · ");
+        if (meta) info.appendChild(el("p", "mt-1 text-[11px] text-muted", meta));
+        info.appendChild(
+          el("p", "mt-2 text-xs text-muted", `Requested by @${w.user}`)
+        );
+        card.appendChild(info);
+
+        list.appendChild(card);
+      }
+    }
+
+    // ---------- Skeletons, status & loading ----------
+    function renderSkeletons() {
+      const grid = $("#watched-grid");
+      for (let i = 0; i < 12; i++) {
+        grid.appendChild(el("div", "skeleton aspect-[2/3] rounded-md"));
+      }
+    }
+
+    function showStatus(sel, msg) {
+      const node = $(sel);
+      node.textContent = msg;
+      node.hidden = false;
+    }
+
+    async function loadJson(url) {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`${url} -> ${res.status}`);
+      return res.json();
+    }
+
+    async function init() {
+      renderSkeletons();
+
+      const [moviesResult] = await Promise.allSettled([
+        loadJson("/api/movies"),
+      ]);
+
+      $("#watched-grid").innerHTML = "";
+
+      // If the API isn't reachable (e.g. static preview without serverless
+      // functions), fall back to demo data and show the banner instead of errors.
+      const anyFailed = moviesResult.status === "rejected";
+      if (anyFailed) $("#demo-banner").hidden = false;
+
+      if (moviesResult.status === "fulfilled") {
+        renderWatched(moviesResult.value.movies || []);
+      } else {
+        renderWatched(DEMO_MOVIES);
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

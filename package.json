@@ -1,0 +1,9 @@
+{
+  "name": "stream-kino-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimalistisches Kino-Dashboard für Twitch: Historie via StreamElements-Command + Google Sheet, Wunschliste via Loyalty Store, Poster via TMDB.",
+  "engines": {
+    "node": ">=18"
+  }
+}
