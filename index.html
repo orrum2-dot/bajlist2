@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Stream Cinema · Dashboard</title>
+  <title>Bajlist</title>
 
   <!-- Fonts: Space Grotesk (display) + Inter (body) -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -78,16 +78,9 @@
 
   <!-- ===== Header ===== -->
   <header class="mx-auto max-w-6xl px-5 pt-14 pb-10 sm:pt-20">
-    <p class="font-display text-[11px] font-medium uppercase tracking-[0.35em] text-amber">
-      Now showing
-    </p>
-    <h1 class="mt-3 font-display text-4xl font-bold tracking-tight sm:text-5xl">
-      Stream Cinema
+    <h1 class="font-display text-4xl font-bold tracking-tight sm:text-5xl">
+      Welcome Bajs
     </h1>
-    <p class="mt-3 max-w-xl text-sm leading-relaxed text-muted">
-      Everything we've watched on stream — and what the community wants to see
-      next. Redeem a movie wish live in the points store.
-    </p>
   </header>
 
   <div class="sprockets" aria-hidden="true"></div>
@@ -113,7 +106,7 @@
       <div class="flex items-baseline justify-between border-b border-line pb-4">
         <h2 id="watched-heading"
             class="font-display text-lg font-semibold tracking-wide">
-          Recently watched on stream
+          Recently watched
         </h2>
         <span id="watched-count" class="text-xs text-muted"></span>
       </div>
@@ -122,6 +115,22 @@
         <!-- filled by JS -->
       </div>
       <p id="watched-status" class="mt-6 text-sm text-muted" hidden></p>
+    </section>
+
+    <!-- ===== Section: Watchlist ===== -->
+    <section aria-labelledby="watchlist-heading" class="pt-20">
+      <div class="flex items-baseline justify-between border-b border-line pb-4">
+        <h2 id="watchlist-heading"
+            class="font-display text-lg font-semibold tracking-wide">
+          Watchlist
+        </h2>
+        <span id="watchlist-count" class="text-xs text-muted"></span>
+      </div>
+      <div id="watchlist-grid"
+           class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        <!-- filled by JS -->
+      </div>
+      <p id="watchlist-status" class="mt-6 text-sm text-muted" hidden></p>
     </section>
 
     <!-- ===== Section 2: Wishlist ===== -->
@@ -164,9 +173,8 @@
   </div>
 
   <footer class="border-t border-line">
-    <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 text-xs text-muted">
+    <div class="mx-auto max-w-6xl px-5 py-6 text-xs text-muted">
       <span>Movie data &amp; posters by <a class="underline decoration-line underline-offset-4 hover:text-body" href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a></span>
-      <span class="font-display tracking-[0.25em] uppercase">Stream Cinema</span>
     </div>
   </footer>
 
@@ -180,10 +188,10 @@
       { title: "Parasite", year: "2019", genres: ["Thriller", "Drama"], poster: null, rating: 8.5, runtime: 133, overview: "A poor family schemes to become employed by a wealthy household by infiltrating their domestic life." },
       { title: "The Grand Budapest Hotel", year: "2014", genres: ["Comedy"], poster: null, rating: 8.0, runtime: 100, overview: "A legendary concierge and his protégé become entangled in the theft of a priceless painting between the wars." },
     ];
-    const DEMO_WISHES = [
-      { title: "Dune: Part Two", year: "2024", genres: ["Sci-Fi"], poster: null, user: "moviefan_92" },
-      { title: "Everything Everywhere All at Once", year: "2022", genres: ["Adventure"], poster: null, user: "chaos_kate" },
-      { title: "Oldboy", year: "2003", genres: ["Thriller"], poster: null, user: "nightowl" },
+    const DEMO_WATCHLIST = [
+      { title: "Dune: Part Two", year: "2024", genres: ["Sci-Fi", "Adventure"], poster: null, rating: 8.2, runtime: 167, overview: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." },
+      { title: "Oldboy", year: "2003", genres: ["Thriller", "Mystery"], poster: null, rating: 8.3, runtime: 120, overview: "After being imprisoned for fifteen years without explanation, a man is released and seeks the truth behind his captivity." },
+      { title: "Everything Everywhere All at Once", year: "2022", genres: ["Adventure", "Comedy"], poster: null, rating: 7.8, runtime: 139, overview: "An aging Chinese immigrant is swept up in an insane adventure where she alone can save the multiverse." },
     ];
 
     // ---------- Helpers ----------
@@ -214,23 +222,20 @@
       return ph;
     }
 
-    // ---------- Section 1: poster grid ----------
-    function renderWatched(movies) {
-      const grid = $("#watched-grid");
+    // ---------- Poster grids (Recently watched + Watchlist) ----------
+    function renderMovieGrid(movies, gridSel, countSel, statusSel, emptyMsg, dateLabel) {
+      const grid = $(gridSel);
       grid.innerHTML = "";
-      $("#watched-count").textContent = movies.length
-        ? `${movies.length} movies`
-        : "";
+      $(countSel).textContent = movies.length ? `${movies.length} movies` : "";
 
       if (!movies.length) {
-        showStatus(
-          "#watched-status",
-          "No movies yet. Add the first one in chat with !addfilm Title."
-        );
+        showStatus(statusSel, emptyMsg);
         return;
       }
+      $(statusSel).hidden = true;
 
       for (const m of movies) {
+        m._dateLabel = dateLabel;
         const card = el(
           "article",
           "poster-card group relative cursor-pointer overflow-hidden rounded-md border border-line bg-panel"
@@ -308,9 +313,11 @@
 
     // ---------- Skeletons, status & loading ----------
     function renderSkeletons() {
-      const grid = $("#watched-grid");
-      for (let i = 0; i < 12; i++) {
-        grid.appendChild(el("div", "skeleton aspect-[2/3] rounded-md"));
+      for (const sel of ["#watched-grid", "#watchlist-grid"]) {
+        const grid = $(sel);
+        for (let i = 0; i < 6; i++) {
+          grid.appendChild(el("div", "skeleton aspect-[2/3] rounded-md"));
+        }
       }
     }
 
@@ -329,21 +336,49 @@
     async function init() {
       renderSkeletons();
 
-      const [moviesResult] = await Promise.allSettled([
+      const [moviesResult, watchResult] = await Promise.allSettled([
         loadJson("/api/movies"),
+        loadJson("/api/watchlist"),
       ]);
 
       $("#watched-grid").innerHTML = "";
+      $("#watchlist-grid").innerHTML = "";
 
       // If the API isn't reachable (e.g. static preview without serverless
       // functions), fall back to demo data and show the banner instead of errors.
-      const anyFailed = moviesResult.status === "rejected";
-      if (anyFailed) $("#demo-banner").hidden = false;
+      const demoMode = moviesResult.status === "rejected";
+      if (demoMode) $("#demo-banner").hidden = false;
 
-      if (moviesResult.status === "fulfilled") {
-        renderWatched(moviesResult.value.movies || []);
+      renderMovieGrid(
+        demoMode ? DEMO_MOVIES : moviesResult.value.movies || [],
+        "#watched-grid",
+        "#watched-count",
+        "#watched-status",
+        "No movies yet. Add the first one in chat with !addfilm Title.",
+        "Watched on"
+      );
+
+      if (watchResult.status === "fulfilled") {
+        renderMovieGrid(
+          watchResult.value.watchlist || [],
+          "#watchlist-grid",
+          "#watchlist-count",
+          "#watchlist-status",
+          "The watchlist is empty. Add a movie in chat with !watch Title.",
+          "Added on"
+        );
+      } else if (demoMode) {
+        renderMovieGrid(
+          DEMO_WATCHLIST,
+          "#watchlist-grid",
+          "#watchlist-count",
+          "#watchlist-status",
+          "",
+          "Added on"
+        );
       } else {
-        renderWatched(DEMO_MOVIES);
+        // Watchlist (noch) nicht eingerichtet -> Sektion sauber ausblenden
+        $("#watchlist-heading").closest("section").hidden = true;
       }
     }
 
@@ -382,7 +417,7 @@
         movie.overview || "No description available.";
 
       const addedParts = [];
-      if (movie.date) addedParts.push(`Watched on stream: ${movie.date}`);
+      if (movie.date) addedParts.push(`${movie._dateLabel || "Watched on"}: ${movie.date}`);
       if (movie.addedBy) addedParts.push(`added by ${movie.addedBy}`);
       $("#modal-added").textContent = addedParts.join("  ·  ");
       $("#modal-added").hidden = addedParts.length === 0;
