@@ -139,6 +139,28 @@
     </section>
   </main>
 
+  <!-- ===== Movie detail modal ===== -->
+  <div id="movie-modal" hidden class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" data-close></div>
+    <div class="relative w-full max-w-2xl overflow-hidden rounded-lg border border-line bg-panel shadow-2xl"
+         role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button data-close aria-label="Close"
+              class="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-line bg-ink/80 text-muted transition-colors hover:text-body">
+        ✕
+      </button>
+      <div class="flex max-h-[85vh] flex-col overflow-y-auto sm:flex-row sm:overflow-visible">
+        <div id="modal-poster" class="shrink-0 sm:w-56"></div>
+        <div class="min-w-0 p-6 sm:p-7">
+          <h3 id="modal-title" class="font-display text-2xl font-bold tracking-tight pr-8"></h3>
+          <p id="modal-meta" class="mt-2 text-sm text-muted"></p>
+          <p id="modal-genres" class="mt-2 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-amber"></p>
+          <p id="modal-overview" class="mt-4 text-sm leading-relaxed text-body/90"></p>
+          <p id="modal-added" class="mt-5 border-t border-line pt-4 text-xs text-muted"></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <footer class="border-t border-line">
     <div class="mx-auto flex max-w-6xl items-center justify-between px-5 py-6 text-xs text-muted">
       <span>Movie data &amp; posters by <a class="underline decoration-line underline-offset-4 hover:text-body" href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a></span>
@@ -149,12 +171,12 @@
   <script>
     // ---------- Demo data (shown only when the API isn't reachable) ----------
     const DEMO_MOVIES = [
-      { title: "Blade Runner 2049", year: "2017", genres: ["Sci-Fi", "Drama"], poster: null },
-      { title: "Whiplash", year: "2014", genres: ["Drama", "Music"], poster: null },
-      { title: "Spirited Away", year: "2001", genres: ["Animation", "Fantasy"], poster: null },
-      { title: "Mad Max: Fury Road", year: "2015", genres: ["Action"], poster: null },
-      { title: "Parasite", year: "2019", genres: ["Thriller", "Drama"], poster: null },
-      { title: "The Grand Budapest Hotel", year: "2014", genres: ["Comedy"], poster: null },
+      { title: "Blade Runner 2049", year: "2017", genres: ["Sci-Fi", "Drama"], poster: null, rating: 7.6, runtime: 164, overview: "A young blade runner uncovers a long-buried secret that leads him to track down former blade runner Rick Deckard." },
+      { title: "Whiplash", year: "2014", genres: ["Drama", "Music"], poster: null, rating: 8.4, runtime: 107, overview: "A promising young drummer enrolls at a cut-throat music conservatory where an abusive instructor pushes him to his limits." },
+      { title: "Spirited Away", year: "2001", genres: ["Animation", "Fantasy"], poster: null, rating: 8.5, runtime: 125, overview: "A young girl wanders into a world ruled by gods and witches, where humans are changed into beasts." },
+      { title: "Mad Max: Fury Road", year: "2015", genres: ["Action"], poster: null, rating: 7.6, runtime: 121, overview: "In a post-apocalyptic wasteland, Max teams up with Furiosa to flee from a tyrant and his army in an armored tanker truck." },
+      { title: "Parasite", year: "2019", genres: ["Thriller", "Drama"], poster: null, rating: 8.5, runtime: 133, overview: "A poor family schemes to become employed by a wealthy household by infiltrating their domestic life." },
+      { title: "The Grand Budapest Hotel", year: "2014", genres: ["Comedy"], poster: null, rating: 8.0, runtime: 100, overview: "A legendary concierge and his protégé become entangled in the theft of a priceless painting between the wars." },
     ];
     const DEMO_WISHES = [
       { title: "Dune: Part Two", year: "2024", genres: ["Sci-Fi"], poster: null, user: "moviefan_92" },
@@ -209,9 +231,18 @@
       for (const m of movies) {
         const card = el(
           "article",
-          "poster-card group relative overflow-hidden rounded-md border border-line bg-panel"
+          "poster-card group relative cursor-pointer overflow-hidden rounded-md border border-line bg-panel"
         );
         card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-label", `Show details: ${m.title}`);
+        card.addEventListener("click", () => openModal(m));
+        card.addEventListener("keydown", (ev) => {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            openModal(m);
+          }
+        });
 
         const frame = el("div", "aspect-[2/3] overflow-hidden");
         frame.appendChild(
@@ -313,6 +344,62 @@
         renderWatched(DEMO_MOVIES);
       }
     }
+
+    // ---------- Movie detail modal ----------
+    const modal = $("#movie-modal");
+
+    function formatRuntime(min) {
+      if (!min) return null;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return h ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    function openModal(movie) {
+      // Poster (or placeholder) on the left
+      const posterBox = $("#modal-poster");
+      posterBox.innerHTML = "";
+      posterBox.appendChild(
+        posterOrPlaceholder(movie, "h-full w-full object-cover aspect-[2/3]")
+      );
+
+      $("#modal-title").textContent = movie.title;
+
+      const meta = [
+        movie.year,
+        formatRuntime(movie.runtime),
+        movie.rating ? `★ ${movie.rating} / 10` : null,
+      ]
+        .filter(Boolean)
+        .join("  ·  ");
+      $("#modal-meta").textContent = meta;
+
+      $("#modal-genres").textContent = (movie.genres || []).join(" · ");
+
+      $("#modal-overview").textContent =
+        movie.overview || "No description available.";
+
+      const addedParts = [];
+      if (movie.date) addedParts.push(`Watched on stream: ${movie.date}`);
+      if (movie.addedBy) addedParts.push(`added by ${movie.addedBy}`);
+      $("#modal-added").textContent = addedParts.join("  ·  ");
+      $("#modal-added").hidden = addedParts.length === 0;
+
+      modal.hidden = false;
+      document.body.style.overflow = "hidden"; // Hintergrund nicht scrollen
+    }
+
+    function closeModal() {
+      modal.hidden = true;
+      document.body.style.overflow = "";
+    }
+
+    modal.addEventListener("click", (ev) => {
+      if (ev.target.closest("[data-close]")) closeModal();
+    });
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && !modal.hidden) closeModal();
+    });
 
     init();
   </script>
