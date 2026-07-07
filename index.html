@@ -166,6 +166,11 @@
           <p id="modal-meta" class="mt-2 text-sm text-muted"></p>
           <p id="modal-genres" class="mt-2 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-amber"></p>
           <p id="modal-overview" class="mt-4 text-sm leading-relaxed text-body/90"></p>
+          <button id="modal-trailer-btn" hidden
+                  class="mt-4 inline-flex items-center gap-2 rounded-md border border-amber/50 px-4 py-2 font-display text-sm font-semibold text-amber transition-colors hover:bg-amber/10">
+            ▶ Watch trailer
+          </button>
+          <div id="modal-trailer" hidden class="mt-4 aspect-video w-full overflow-hidden rounded-md border border-line"></div>
           <p id="modal-added" class="mt-5 border-t border-line pt-4 text-xs text-muted"></p>
         </div>
       </div>
@@ -364,7 +369,7 @@
           "#watchlist-grid",
           "#watchlist-count",
           "#watchlist-status",
-          "The watchlist is empty. Add a movie in chat with !watch Title.",
+          "The watchlist is empty. Add a movie in chat with !addlist Title.",
           "Added on"
         );
       } else if (demoMode) {
@@ -422,12 +427,32 @@
       $("#modal-added").textContent = addedParts.join("  ·  ");
       $("#modal-added").hidden = addedParts.length === 0;
 
+      // Trailer: Button nur zeigen, wenn TMDB einen hat.
+      // Player erst bei Klick laden (spart Traffic, kein Autoplay-Ton).
+      const trailerBtn = $("#modal-trailer-btn");
+      const trailerBox = $("#modal-trailer");
+      trailerBox.hidden = true;
+      trailerBox.innerHTML = "";
+      trailerBtn.hidden = !movie.trailer;
+      trailerBtn.onclick = () => {
+        trailerBox.innerHTML =
+          '<iframe class="h-full w-full" src="https://www.youtube-nocookie.com/embed/' +
+          movie.trailer +
+          '?autoplay=1" title="Trailer" frameborder="0" ' +
+          'allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        trailerBox.hidden = false;
+        trailerBtn.hidden = true;
+      };
+
       modal.hidden = false;
       document.body.style.overflow = "hidden"; // Hintergrund nicht scrollen
     }
 
     function closeModal() {
       modal.hidden = true;
+      // Player entfernen, sonst läuft der Trailer-Ton im Hintergrund weiter
+      $("#modal-trailer").innerHTML = "";
+      $("#modal-trailer").hidden = true;
       document.body.style.overflow = "";
     }
 
