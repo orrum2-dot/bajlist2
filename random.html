@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bajlist · Random Picker</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:   "#0C0E12",
+            panel: "#12151B",
+            line:  "rgba(255,255,255,0.08)",
+            body:  "#EDEFF3",
+            muted: "#98A1AD",
+            amber: "#E3B04B",
+          },
+          fontFamily: {
+            display: ['"Space Grotesk"', "sans-serif"],
+            sans: ["Inter", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    [hidden] { display: none !important; }
+    html { background: #0C0E12; }
+    #bg-canvas { position: fixed; inset: 0; z-index: -1; }
+    .sprockets {
+      height: 14px;
+      background-image: radial-gradient(rgba(255,255,255,0.14) 2.5px, transparent 2.6px);
+      background-size: 26px 14px;
+      background-position: center;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    select {
+      background-color: #12151B;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 0.375rem;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.875rem;
+      color: #EDEFF3;
+    }
+    .skeleton {
+      background: linear-gradient(100deg, #12151B 40%, #1A1E26 50%, #12151B 60%);
+      background-size: 200% 100%;
+      animation: shimmer 1.4s infinite linear;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+    :focus-visible { outline: 2px solid #E3B04B; outline-offset: 3px; }
+  </style>
+</head>
+
+<body class="font-sans text-body antialiased min-h-screen">
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <header class="mx-auto max-w-4xl px-5 pt-14 pb-10">
+    <div class="flex items-baseline justify-between">
+      <h1 class="font-display text-4xl font-bold tracking-tight">Random Picker</h1>
+      <a href="/" class="text-sm text-muted underline decoration-line underline-offset-4 hover:text-body">← Bajlist</a>
+    </div>
+    <p class="mt-3 max-w-xl text-sm leading-relaxed text-muted">
+      Pick a genre and a year range, hit roll, get a movie.
+    </p>
+  </header>
+
+  <div class="sprockets" aria-hidden="true"></div>
+
+  <main class="mx-auto max-w-4xl px-5 pb-24">
+
+    <!-- Filters -->
+    <section class="pt-10">
+      <div class="flex flex-wrap items-end gap-4">
+        <label class="block">
+          <span class="mb-1 block text-xs uppercase tracking-widest text-muted">Genre</span>
+          <select id="genre">
+            <option value="">Any genre</option>
+          </select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs uppercase tracking-widest text-muted">From</span>
+          <select id="year-from"></select>
+        </label>
+        <label class="block">
+          <span class="mb-1 block text-xs uppercase tracking-widest text-muted">To</span>
+          <select id="year-to"></select>
+        </label>
+        <button id="roll"
+                class="rounded-md border border-amber/50 px-8 py-2.5 font-display text-sm font-semibold text-amber transition-colors hover:bg-amber/10">
+          🎲 Roll
+        </button>
+      </div>
+      <p id="status" class="mt-4 text-sm text-muted" hidden></p>
+    </section>
+
+    <!-- Result -->
+    <section class="pt-10">
+      <div id="result-skeleton" hidden class="skeleton h-80 rounded-lg"></div>
+      <div id="result" hidden
+           class="overflow-hidden rounded-lg border border-line bg-panel">
+        <div class="flex flex-col sm:flex-row">
+          <div id="r-poster" class="shrink-0 sm:w-56"></div>
+          <div class="min-w-0 p-6 sm:p-7">
+            <h2 id="r-title" class="font-display text-2xl font-bold tracking-tight"></h2>
+            <p id="r-meta" class="mt-2 text-sm text-muted"></p>
+            <p id="r-genres" class="mt-2 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-amber"></p>
+            <p id="r-overview" class="mt-4 text-sm leading-relaxed text-body/90"></p>
+            <button id="r-trailer-btn" hidden
+                    class="mt-4 inline-flex items-center gap-2 rounded-md border border-amber/50 px-4 py-2 font-display text-sm font-semibold text-amber transition-colors hover:bg-amber/10">
+              ▶ Watch trailer
+            </button>
+            <div id="r-trailer" hidden class="mt-4 aspect-video w-full overflow-hidden rounded-md border border-line"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- History -->
+    <section class="pt-14" id="history-section" hidden>
+      <div class="flex items-baseline justify-between border-b border-line pb-4">
+        <h2 class="font-display text-lg font-semibold tracking-wide">Last rolls</h2>
+        <span class="text-xs text-muted">up to 10 · click to view again</span>
+      </div>
+      <div id="history"
+           class="mt-8 grid grid-cols-3 gap-x-4 gap-y-6 sm:grid-cols-5 md:grid-cols-10">
+      </div>
+    </section>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto max-w-4xl px-5 py-6 text-xs text-muted">
+      Movie data &amp; posters by <a class="underline decoration-line underline-offset-4 hover:text-body" href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>
+    </div>
+  </footer>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+
+    // TMDB-Genre-IDs (stabil seit Jahren)
+    const GENRES = [
+      ["Action", 28], ["Adventure", 12], ["Animation", 16], ["Comedy", 35],
+      ["Crime", 80], ["Documentary", 99], ["Drama", 18], ["Family", 10751],
+      ["Fantasy", 14], ["History", 36], ["Horror", 27], ["Music", 10402],
+      ["Mystery", 9648], ["Romance", 10749], ["Science Fiction", 878],
+      ["Thriller", 53], ["War", 10752], ["Western", 37],
+    ];
+
+    // ---------- Filter-Dropdowns befüllen ----------
+    const genreSel = $("#genre");
+    for (const [name, id] of GENRES) {
+      const opt = document.createElement("option");
+      opt.value = id;
+      opt.textContent = name;
+      genreSel.appendChild(opt);
+    }
+    const thisYear = new Date().getFullYear();
+    for (const sel of [$("#year-from"), $("#year-to")]) {
+      for (let y = thisYear; y >= 1950; y--) {
+        const opt = document.createElement("option");
+        opt.value = y;
+        opt.textContent = y;
+        sel.appendChild(opt);
+      }
+    }
+    $("#year-from").value = 1980;
+    $("#year-to").value = thisYear;
+
+    // ---------- Historie (max 10, überlebt Reloads in der Session) ----------
+    let history = [];
+    try { history = JSON.parse(sessionStorage.getItem("bajlist-rolls") || "[]"); } catch (e) {}
+
+    function saveHistory() {
+      try { sessionStorage.setItem("bajlist-rolls", JSON.stringify(history)); } catch (e) {}
+    }
+
+    function renderHistory() {
+      const wrap = $("#history");
+      wrap.innerHTML = "";
+      $("#history-section").hidden = history.length === 0;
+      for (const m of history) {
+        const btn = document.createElement("button");
+        btn.className =
+          "overflow-hidden rounded-md border border-line bg-panel transition-colors hover:border-amber/40";
+        btn.title = m.title;
+        if (m.poster) {
+          const img = document.createElement("img");
+          img.src = m.poster;
+          img.alt = m.title;
+          img.loading = "lazy";
+          img.className = "aspect-[2/3] w-full object-cover";
+          btn.appendChild(img);
+        } else {
+          const ph = document.createElement("div");
+          ph.className =
+            "flex aspect-[2/3] items-center justify-center p-1 text-center text-[10px] text-muted";
+          ph.textContent = m.title;
+          btn.appendChild(ph);
+        }
+        btn.addEventListener("click", () => showMovie(m, false));
+        wrap.appendChild(btn);
+      }
+    }
+
+    // ---------- Ergebnis anzeigen ----------
+    function formatRuntime(min) {
+      if (!min) return null;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return h ? `${h}h ${m}m` : `${m}m`;
+    }
+
+    function showMovie(movie, addToHistory) {
+      const posterBox = $("#r-poster");
+      posterBox.innerHTML = "";
+      if (movie.poster) {
+        const img = document.createElement("img");
+        img.src = movie.poster;
+        img.alt = `Movie poster: ${movie.title}`;
+        img.className = "h-full w-full object-cover aspect-[2/3]";
+        posterBox.appendChild(img);
+      } else {
+        const ph = document.createElement("div");
+        ph.className =
+          "flex h-full w-full aspect-[2/3] items-center justify-center bg-panel p-3 text-center text-xs text-muted";
+        ph.textContent = movie.title;
+        posterBox.appendChild(ph);
+      }
+
+      $("#r-title").textContent = movie.title;
+      $("#r-meta").textContent = [
+        movie.year,
+        formatRuntime(movie.runtime),
+        movie.rating ? `★ ${movie.rating} / 10` : null,
+      ].filter(Boolean).join("  ·  ");
+      $("#r-genres").textContent = (movie.genres || []).join(" · ");
+      $("#r-overview").textContent = movie.overview || "No description available.";
+
+      const btn = $("#r-trailer-btn");
+      const box = $("#r-trailer");
+      box.hidden = true;
+      box.innerHTML = "";
+      btn.hidden = !movie.trailer;
+      btn.onclick = () => {
+        box.innerHTML =
+          '<iframe class="h-full w-full" src="https://www.youtube-nocookie.com/embed/' +
+          movie.trailer +
+          '?autoplay=1" title="Trailer" frameborder="0" ' +
+          'allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        box.hidden = false;
+        btn.hidden = true;
+      };
+
+      $("#result").hidden = false;
+
+      if (addToHistory) {
+        history = [movie, ...history.filter((m) => m.id !== movie.id)].slice(0, 10);
+        saveHistory();
+        renderHistory();
+      }
+    }
+
+    // ---------- Rollen ----------
+    async function roll() {
+      const from = parseInt($("#year-from").value, 10);
+      const to = parseInt($("#year-to").value, 10);
+      if (from > to) {
+        showStatus("The start year is after the end year – swap them.");
+        return;
+      }
+      $("#status").hidden = true;
+      $("#result").hidden = true;
+      $("#result-skeleton").hidden = false;
+      $("#roll").disabled = true;
+
+      try {
+        const params = new URLSearchParams({ from, to });
+        const genre = $("#genre").value;
+        if (genre) params.set("genre", genre);
+
+        // Bis zu 3 Versuche, um Wiederholungen aus der Historie zu vermeiden
+        let movie = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const res = await fetch("/api/random?" + params.toString());
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          if (!data.movie) {
+            showStatus(data.message || "No movies found for these filters.");
+            return;
+          }
+          movie = data.movie;
+          if (!history.some((m) => m.id === movie.id)) break;
+        }
+        showMovie(movie, true);
+      } catch (err) {
+        showStatus("The roll failed – is the site deployed with its API? (" + err.message + ")");
+      } finally {
+        $("#result-skeleton").hidden = true;
+        $("#roll").disabled = false;
+      }
+    }
+
+    function showStatus(msg) {
+      const node = $("#status");
+      node.textContent = msg;
+      node.hidden = false;
+      $("#result-skeleton").hidden = true;
+    }
+
+    $("#roll").addEventListener("click", roll);
+    renderHistory();
+
+    // ---------- Animierter Hintergrund (wie auf der Hauptseite) ----------
+    (function startBackground() {
+      const canvas = $("#bg-canvas");
+      const ctx = canvas.getContext("2d");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let w, h, dpr;
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = canvas.width = Math.floor(innerWidth * dpr);
+        h = canvas.height = Math.floor(innerHeight * dpr);
+        canvas.style.width = innerWidth + "px";
+        canvas.style.height = innerHeight + "px";
+      }
+      resize();
+      addEventListener("resize", resize);
+      const count = innerWidth < 640 ? 45 : 90;
+      const dust = Array.from({ length: count }, () => ({
+        x: Math.random(), y: Math.random(),
+        r: Math.random() * 1.6 + 0.4,
+        s: Math.random() * 0.0005 + 0.00018,
+        drift: Math.random() * Math.PI * 2,
+        tw: Math.random() * Math.PI * 2,
+        hue: Math.random() < 0.35 ? Math.floor(Math.random() * 360) : null,
+      }));
+      function glow(x, y, r, color) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, color);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      }
+      let t = Math.random() * 100;
+      function frame() {
+        t += 0.008;
+        ctx.clearRect(0, 0, w, h);
+        const R = Math.max(w, h);
+        const hue = (t * 14) % 360;
+        glow(w * (0.55 + 0.32 * Math.cos(t)), h * (0.28 + 0.2 * Math.sin(t * 0.8)), R * 0.55, `hsla(${hue}, 75%, 60%, 0.075)`);
+        glow(w * (0.3 + 0.3 * Math.sin(t * 0.6)), h * (0.75 + 0.16 * Math.cos(t * 0.5)), R * 0.5, `hsla(${(hue + 120) % 360}, 75%, 60%, 0.065)`);
+        glow(w * (0.8 - 0.25 * Math.sin(t * 0.45)), h * (0.55 + 0.25 * Math.sin(t * 0.7)), R * 0.45, `hsla(${(hue + 240) % 360}, 75%, 62%, 0.06)`);
+        for (const d of dust) {
+          d.y -= d.s; d.drift += 0.004; d.tw += 0.035;
+          if (d.y < -0.02) { d.y = 1.02; d.x = Math.random(); }
+          const alpha = 0.12 + 0.11 * Math.sin(d.tw);
+          ctx.beginPath();
+          ctx.arc((d.x + Math.sin(d.drift) * 0.01) * w, d.y * h, d.r * dpr, 0, Math.PI * 2);
+          ctx.fillStyle = d.hue === null
+            ? `rgba(237,239,243,${alpha.toFixed(3)})`
+            : `hsla(${(d.hue + t * 30) % 360}, 85%, 70%, ${alpha.toFixed(3)})`;
+          ctx.fill();
+        }
+        if (!reduced) requestAnimationFrame(frame);
+      }
+      frame();
+    })();
+  </script>
+</body>
+</html>
