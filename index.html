@@ -71,10 +71,32 @@
     }
 
     :focus-visible { outline: 2px solid #E3B04B; outline-offset: 3px; }
+    /* Animierter Hintergrund: Canvas liegt hinter dem Inhalt */
+    html { background: #0C0E12; }
+    #bg-canvas { position: fixed; inset: 0; z-index: -1; }
   </style>
 </head>
 
-<body class="bg-ink font-sans text-body antialiased min-h-screen">
+<body class="font-sans text-body antialiased min-h-screen">
+
+  <!-- Animated projector background (behind everything) -->
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <!-- Intro / boot screen -->
+  <div id="intro"
+       class="fixed inset-0 z-[70] flex items-center justify-center bg-ink transition-opacity duration-700">
+    <div class="px-6 text-center">
+      <p class="font-display text-[11px] font-medium uppercase tracking-[0.35em] text-amber">sys/init</p>
+      <h1 class="mt-3 font-display text-5xl font-bold tracking-tight">Bajlist</h1>
+      <div id="boot-log"
+           class="mx-auto mt-6 h-24 w-64 text-left font-mono text-xs leading-6 text-muted"></div>
+      <button id="continue-btn" disabled
+              class="mt-2 rounded-md border border-amber/50 px-8 py-2.5 font-display text-sm font-semibold text-amber opacity-0 transition-all duration-500 hover:bg-amber/10">
+        continue
+      </button>
+    </div>
+  </div>
+
 
   <!-- ===== Header ===== -->
   <header class="mx-auto max-w-6xl px-5 pt-14 pb-10 sm:pt-20">
@@ -131,6 +153,20 @@
         <!-- filled by JS -->
       </div>
       <p id="watchlist-status" class="mt-6 text-sm text-muted" hidden></p>
+    </section>
+
+    <!-- ===== Section 3: Recommendations ===== -->
+    <section aria-labelledby="recs-heading" class="pt-20" id="recs-section" hidden>
+      <div class="flex items-baseline justify-between border-b border-line pb-4">
+        <h2 id="recs-heading"
+            class="font-display text-lg font-semibold tracking-wide">
+          You might like
+        </h2>
+        <span class="text-xs text-muted">based on what we watched</span>
+      </div>
+      <div id="recs-grid"
+           class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      </div>
     </section>
 
     <!-- ===== Section 2: Wishlist ===== -->
@@ -231,13 +267,15 @@
     function renderMovieGrid(movies, gridSel, countSel, statusSel, emptyMsg, dateLabel) {
       const grid = $(gridSel);
       grid.innerHTML = "";
-      $(countSel).textContent = movies.length ? `${movies.length} movies` : "";
+      if (countSel) {
+        $(countSel).textContent = movies.length ? `${movies.length} movies` : "";
+      }
 
       if (!movies.length) {
-        showStatus(statusSel, emptyMsg);
+        if (statusSel) showStatus(statusSel, emptyMsg);
         return;
       }
-      $(statusSel).hidden = true;
+      if (statusSel) $(statusSel).hidden = true;
 
       for (const m of movies) {
         m._dateLabel = dateLabel;
@@ -341,9 +379,10 @@
     async function init() {
       renderSkeletons();
 
-      const [moviesResult, watchResult] = await Promise.allSettled([
+      const [moviesResult, watchResult, recsResult] = await Promise.allSettled([
         loadJson("/api/movies"),
         loadJson("/api/watchlist"),
+        loadJson("/api/recommendations"),
       ]);
 
       $("#watched-grid").innerHTML = "";
@@ -385,6 +424,16 @@
         // Watchlist (noch) nicht eingerichtet -> Sektion sauber ausblenden
         $("#watchlist-heading").closest("section").hidden = true;
       }
+
+      // Empfehlungen: Sektion nur einblenden, wenn es welche gibt.
+      const recs =
+        recsResult.status === "fulfilled"
+          ? recsResult.value.recommendations || []
+          : [];
+      if (recs.length) {
+        $("#recs-section").hidden = false;
+        renderMovieGrid(recs, "#recs-grid", null, null, "", "");
+      }
     }
 
     // ---------- Movie detail modal ----------
@@ -422,6 +471,7 @@
         movie.overview || "No description available.";
 
       const addedParts = [];
+      if (movie.because) addedParts.push(`Because we watched: ${movie.because}`);
       if (movie.date) addedParts.push(`${movie._dateLabel || "Watched on"}: ${movie.date}`);
       if (movie.addedBy) addedParts.push(`added by ${movie.addedBy}`);
       $("#modal-added").textContent = addedParts.join("  ·  ");
@@ -463,6 +513,155 @@
       if (ev.key === "Escape" && !modal.hidden) closeModal();
     });
 
+    // ---------- Intro / boot screen ----------
+    const SHOW_INTRO = true; // auf false stellen, um das Intro abzuschalten
+
+    function initIntro() {
+      const intro = $("#intro");
+      let seen = false;
+      try { seen = sessionStorage.getItem("bajlist-intro") === "1"; } catch (e) {}
+
+      if (!SHOW_INTRO || seen) {
+        intro.remove();
+        startBackground();
+        return;
+      }
+
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const lines = [
+        "mounting /bajlist ... ok",
+        "loading posters ... ok",
+        "warming up projector ... ok",
+        "ready.",
+      ];
+      const log = $("#boot-log");
+      const btn = $("#continue-btn");
+
+      const showButton = () => {
+        btn.disabled = false;
+        btn.classList.remove("opacity-0");
+        btn.focus();
+      };
+
+      if (reduced) {
+        lines.forEach((l) => log.appendChild(el("div", null, l)));
+        showButton();
+      } else {
+        let i = 0;
+        const timer = setInterval(() => {
+          if (i < lines.length) {
+            log.appendChild(el("div", null, lines[i++]));
+          } else {
+            clearInterval(timer);
+            showButton();
+          }
+        }, 280);
+      }
+
+      btn.addEventListener("click", () => {
+        try { sessionStorage.setItem("bajlist-intro", "1"); } catch (e) {}
+        intro.style.opacity = "0";
+        setTimeout(() => intro.remove(), 700);
+        startBackground();
+      });
+    }
+
+    // ---------- Animated background: projector glow + dust ----------
+    let bgStarted = false;
+
+    function startBackground() {
+      if (bgStarted) return;
+      bgStarted = true;
+
+      const canvas = $("#bg-canvas");
+      const ctx = canvas.getContext("2d");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      let w, h, dpr;
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = canvas.width = Math.floor(innerWidth * dpr);
+        h = canvas.height = Math.floor(innerHeight * dpr);
+        canvas.style.width = innerWidth + "px";
+        canvas.style.height = innerHeight + "px";
+      }
+      resize();
+      addEventListener("resize", resize);
+
+      const count = innerWidth < 640 ? 45 : 90;
+      const dust = Array.from({ length: count }, () => ({
+        x: Math.random(),
+        y: Math.random(),
+        r: Math.random() * 1.6 + 0.4,
+        s: Math.random() * 0.0005 + 0.00018, // Steiggeschwindigkeit
+        drift: Math.random() * Math.PI * 2,
+        tw: Math.random() * Math.PI * 2, // Funkeln
+        hue: Math.random() < 0.35 ? Math.floor(Math.random() * 360) : null, // ein Teil farbig
+      }));
+
+      function glow(x, y, r, color) {
+        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+        g.addColorStop(0, color);
+        g.addColorStop(1, "rgba(0,0,0,0)");
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      let t = Math.random() * 100;
+      function frame() {
+        t += 0.008;
+        ctx.clearRect(0, 0, w, h);
+
+        // Drei wandernde Lichtkegel, deren Farben langsam durchs Spektrum drehen
+        const R = Math.max(w, h);
+        const hue = (t * 14) % 360;
+        glow(
+          w * (0.55 + 0.32 * Math.cos(t)),
+          h * (0.28 + 0.2 * Math.sin(t * 0.8)),
+          R * 0.55,
+          `hsla(${hue}, 75%, 60%, 0.075)`
+        );
+        glow(
+          w * (0.3 + 0.3 * Math.sin(t * 0.6)),
+          h * (0.75 + 0.16 * Math.cos(t * 0.5)),
+          R * 0.5,
+          `hsla(${(hue + 120) % 360}, 75%, 60%, 0.065)`
+        );
+        glow(
+          w * (0.8 - 0.25 * Math.sin(t * 0.45)),
+          h * (0.55 + 0.25 * Math.sin(t * 0.7)),
+          R * 0.45,
+          `hsla(${(hue + 240) % 360}, 75%, 62%, 0.06)`
+        );
+
+        // Staub im Licht: überwiegend weiß, ein Teil farbig funkelnd
+        for (const d of dust) {
+          d.y -= d.s;
+          d.drift += 0.004;
+          d.tw += 0.035;
+          if (d.y < -0.02) { d.y = 1.02; d.x = Math.random(); }
+          const alpha = 0.12 + 0.11 * Math.sin(d.tw);
+          ctx.beginPath();
+          ctx.arc(
+            (d.x + Math.sin(d.drift) * 0.01) * w,
+            d.y * h,
+            d.r * dpr,
+            0,
+            Math.PI * 2
+          );
+          ctx.fillStyle =
+            d.hue === null
+              ? `rgba(237,239,243,${alpha.toFixed(3)})`
+              : `hsla(${(d.hue + t * 30) % 360}, 85%, 70%, ${alpha.toFixed(3)})`;
+          ctx.fill();
+        }
+
+        if (!reduced) requestAnimationFrame(frame);
+      }
+      frame(); // bei reduced motion: ein statisches Bild statt Animation
+    }
+
+    initIntro();
     init();
   </script>
 </body>
