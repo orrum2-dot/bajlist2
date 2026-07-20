@@ -100,8 +100,14 @@
 
   <!-- ===== Header ===== -->
   <header class="mx-auto max-w-6xl px-5 pt-14 pb-10 sm:pt-20">
-    <h1 class="font-display text-4xl font-bold tracking-tight sm:text-5xl">
-      Welcome Bajs
+    <h1 class="flex items-center justify-center gap-3 text-center font-display text-4xl font-bold tracking-tight sm:gap-4 sm:text-5xl">
+      <img src="https://cdn.7tv.app/emote/01JF5RETYC0S65YYEPD8VJW61J/4x.webp"
+           alt="" aria-hidden="true"
+           class="h-10 w-auto shrink-0 sm:h-14" />
+      <span>Welcome Bajs</span>
+      <img src="https://cdn.7tv.app/emote/01JF5RETYC0S65YYEPD8VJW61J/4x.webp"
+           alt="" aria-hidden="true"
+           class="h-10 w-auto shrink-0 sm:h-14" />
     </h1>
   </header>
 
@@ -125,12 +131,12 @@
 
     <!-- ===== Section 1: History ===== -->
     <section aria-labelledby="watched-heading" class="pt-14">
-      <div class="flex items-baseline justify-between border-b border-line pb-4">
+      <div class="pb-2 text-center">
         <h2 id="watched-heading"
             class="font-display text-lg font-semibold tracking-wide">
           Recently watched
         </h2>
-        <span id="watched-count" class="text-xs text-muted"></span>
+        <span id="watched-count" class="mt-1 block text-xs text-muted"></span>
       </div>
       <div id="watched-grid"
            class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -141,12 +147,12 @@
 
     <!-- ===== Section: Watchlist ===== -->
     <section aria-labelledby="watchlist-heading" class="pt-20">
-      <div class="flex items-baseline justify-between border-b border-line pb-4">
+      <div class="pb-2 text-center">
         <h2 id="watchlist-heading"
             class="font-display text-lg font-semibold tracking-wide">
           Watchlist
         </h2>
-        <span id="watchlist-count" class="text-xs text-muted"></span>
+        <span id="watchlist-count" class="mt-1 block text-xs text-muted"></span>
       </div>
       <div id="watchlist-grid"
            class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -157,12 +163,12 @@
 
     <!-- ===== Section 3: Recommendations ===== -->
     <section aria-labelledby="recs-heading" class="pt-20" id="recs-section" hidden>
-      <div class="flex items-baseline justify-between border-b border-line pb-4">
+      <div class="pb-2 text-center">
         <h2 id="recs-heading"
             class="font-display text-lg font-semibold tracking-wide">
           You might like
         </h2>
-        <span class="text-xs text-muted">based on what we watched</span>
+        <span class="mt-1 block text-xs text-muted">based on what we watched</span>
       </div>
       <div id="recs-grid"
            class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
@@ -171,12 +177,12 @@
 
     <!-- ===== Section 2: Wishlist ===== -->
     <section aria-labelledby="wishes-heading" class="pt-20" hidden>
-      <div class="flex items-baseline justify-between border-b border-line pb-4">
+      <div class="pb-2 text-center">
         <h2 id="wishes-heading"
             class="font-display text-lg font-semibold tracking-wide">
           Community wishlist
         </h2>
-        <span class="text-xs text-muted">via points store · "Movie Wish"</span>
+        <span class="mt-1 block text-xs text-muted">via points store · "Movie Wish"</span>
       </div>
       <div id="wishes-list"
            class="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -669,39 +675,13 @@
       }));
 
       function glow(x, y, r, color) {
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, color);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, w, h);
+        // (deaktiviert) – Hintergrund bleibt dunkel, nur die Partikel sind sichtbar.
       }
 
       let t = Math.random() * 100;
       function frame() {
         t += 0.008;
         ctx.clearRect(0, 0, w, h);
-
-        // Drei wandernde Lichtkegel, deren Farben langsam durchs Spektrum drehen
-        const R = Math.max(w, h);
-        const hue = (t * 14) % 360;
-        glow(
-          w * (0.55 + 0.32 * Math.cos(t)),
-          h * (0.28 + 0.2 * Math.sin(t * 0.8)),
-          R * 0.55,
-          `hsla(${hue}, 75%, 60%, 0.075)`
-        );
-        glow(
-          w * (0.3 + 0.3 * Math.sin(t * 0.6)),
-          h * (0.75 + 0.16 * Math.cos(t * 0.5)),
-          R * 0.5,
-          `hsla(${(hue + 120) % 360}, 75%, 60%, 0.065)`
-        );
-        glow(
-          w * (0.8 - 0.25 * Math.sin(t * 0.45)),
-          h * (0.55 + 0.25 * Math.sin(t * 0.7)),
-          R * 0.45,
-          `hsla(${(hue + 240) % 360}, 75%, 62%, 0.06)`
-        );
 
         // Staub im Licht: überwiegend weiß, ein Teil farbig funkelnd
         for (const d of dust) {
