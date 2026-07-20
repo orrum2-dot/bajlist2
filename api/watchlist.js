@@ -6,7 +6,7 @@
 const { lookupMovie } = require("../lib/tmdb");
 const { loadSheetEntries } = require("../lib/sheet");
 
-const MAX_MOVIES = 18;
+const MAX_MOVIES = 60;
 
 module.exports = async function handler(req, res) {
   try {
