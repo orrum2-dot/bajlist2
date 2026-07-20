@@ -446,6 +446,72 @@
       return h ? `${h}h ${m}m` : `${m}m`;
     }
 
+    // ---- YouTube IFrame API: einmalig laden, dann per Promise nutzen ----
+    let ytApiReady = null;
+    function loadYouTubeApi() {
+      if (ytApiReady) return ytApiReady;
+      ytApiReady = new Promise((resolve) => {
+        if (window.YT && window.YT.Player) return resolve();
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => {
+          if (typeof prev === "function") prev();
+          resolve();
+        };
+        const tag = document.createElement("script");
+        tag.src = "https://www.youtube.com/iframe_api";
+        document.head.appendChild(tag);
+      });
+      return ytApiReady;
+    }
+
+    function youtubeSearchUrl(movie) {
+      const q = [movie.title, movie.year, "trailer"].filter(Boolean).join(" ");
+      return (
+        "https://www.youtube.com/results?search_query=" + encodeURIComponent(q)
+      );
+    }
+
+    // Spielt den ersten verfügbaren Trailer. Bei einer Sperre (onError) wird
+    // automatisch der nächste Kandidat probiert; sind alle blockiert, kommt ein
+    // "Auf YouTube suchen"-Link.
+    async function playTrailer(box, keys, movie) {
+      const showFallback = () => {
+        box.innerHTML =
+          '<div class="flex h-full w-full flex-col items-center justify-center gap-2 p-4 text-center text-sm text-muted">' +
+          "<span>Trailer hier nicht verfügbar (Ländersperre).</span>" +
+          '<a href="' +
+          youtubeSearchUrl(movie) +
+          '" target="_blank" rel="noopener" class="font-display font-semibold text-amber hover:underline">Auf YouTube suchen \u2197</a>' +
+          "</div>";
+      };
+      if (!keys || !keys.length) return showFallback();
+
+      box.innerHTML = '<div id="yt-player-slot" class="h-full w-full"></div>';
+      await loadYouTubeApi();
+
+      let idx = 0;
+      let player = null;
+      const tryNext = () => {
+        if (idx >= keys.length) return showFallback();
+        const key = keys[idx++];
+        try {
+          if (player) {
+            player.loadVideoById(key);
+          } else {
+            player = new YT.Player("yt-player-slot", {
+              host: "https://www.youtube-nocookie.com",
+              videoId: key,
+              playerVars: { autoplay: 1, rel: 0 },
+              events: { onError: () => tryNext() },
+            });
+          }
+        } catch (e) {
+          tryNext();
+        }
+      };
+      tryNext();
+    }
+
     function openModal(movie) {
       // Poster (or placeholder) on the left
       const posterBox = $("#modal-poster");
@@ -477,21 +543,24 @@
       $("#modal-added").textContent = addedParts.join("  ·  ");
       $("#modal-added").hidden = addedParts.length === 0;
 
-      // Trailer: Button nur zeigen, wenn TMDB einen hat.
+      // Trailer: Button nur zeigen, wenn TMDB mindestens einen hat.
       // Player erst bei Klick laden (spart Traffic, kein Autoplay-Ton).
+      // Mehrere Kandidaten: bei Ländersperre wird automatisch der nächste probiert.
       const trailerBtn = $("#modal-trailer-btn");
       const trailerBox = $("#modal-trailer");
       trailerBox.hidden = true;
       trailerBox.innerHTML = "";
-      trailerBtn.hidden = !movie.trailer;
+      const trailerKeys =
+        movie.trailers && movie.trailers.length
+          ? movie.trailers.slice()
+          : movie.trailer
+          ? [movie.trailer]
+          : [];
+      trailerBtn.hidden = trailerKeys.length === 0;
       trailerBtn.onclick = () => {
-        trailerBox.innerHTML =
-          '<iframe class="h-full w-full" src="https://www.youtube-nocookie.com/embed/' +
-          movie.trailer +
-          '?autoplay=1" title="Trailer" frameborder="0" ' +
-          'allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
-        trailerBox.hidden = false;
         trailerBtn.hidden = true;
+        trailerBox.hidden = false;
+        playTrailer(trailerBox, trailerKeys, movie);
       };
 
       modal.hidden = false;
