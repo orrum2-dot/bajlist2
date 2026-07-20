@@ -2,7 +2,7 @@
 // Liefert die Film-Historie ("Recently watched").
 // Quelle: erstes Tabellenblatt des Google Sheets (befüllt via !addfilm).
 
-const { lookupMovie } = require("../lib/tmdb");
+const { lookupMovie, mapLimit } = require("../lib/tmdb");
 const { loadSheetEntries } = require("../lib/sheet");
 
 const MAX_MOVIES = 60;
@@ -16,12 +16,11 @@ module.exports = async function handler(req, res) {
 
     const entries = await loadSheetEntries(sheetUrl, MAX_MOVIES);
 
-    const movies = await Promise.all(
-      entries.map(async (e) => {
-        const info = await lookupMovie(e.rawTitle);
-        return { ...info, addedBy: e.addedBy, date: e.date };
-      })
-    );
+    // Max. 8 TMDB-Lookups gleichzeitig, um das Rate-Limit nicht zu reißen
+    const movies = await mapLimit(entries, 8, async (e) => {
+      const info = await lookupMovie(e.rawTitle);
+      return { ...info, addedBy: e.addedBy, date: e.date };
+    });
 
     res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
     return res.status(200).json({ movies });

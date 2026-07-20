@@ -8,6 +8,7 @@ const {
   searchMovie,
   movieFromId,
   recommendationsForId,
+  mapLimit,
 } = require("../lib/tmdb");
 const { loadSheetEntries } = require("../lib/sheet");
 
@@ -66,8 +67,7 @@ module.exports = async function handler(req, res) {
     const scores = new Map(); // tmdbId -> { score, because, raw }
     const seedIds = new Set();
 
-    await Promise.all(
-      seeds.map(async (seed) => {
+    await mapLimit(seeds, 4, async (seed) => {
         try {
           const hit = await searchMovie(seed.rawTitle);
           if (!hit) return;
@@ -94,8 +94,7 @@ module.exports = async function handler(req, res) {
         } catch (err) {
           console.error(`Seed "${seed.rawTitle}" übersprungen:`, err.message);
         }
-      })
-    );
+    });
 
     // 4) Bekanntes und die Seeds selbst herausfiltern, dann Top-N wählen.
     const ranked = [...scores.entries()]
@@ -109,12 +108,10 @@ module.exports = async function handler(req, res) {
       .slice(0, MAX_RESULTS);
 
     // 5) Volle Details (Poster, Laufzeit, Trailer ...) für die Finalisten.
-    const recommendations = await Promise.all(
-      ranked.map(async ([id, entry]) => {
-        const movie = await movieFromId(id);
-        return { ...movie, because: entry.because };
-      })
-    );
+    const recommendations = await mapLimit(ranked, 4, async ([id, entry]) => {
+      const movie = await movieFromId(id);
+      return { ...movie, because: entry.because };
+    });
 
     // Empfehlungen ändern sich nur mit der Historie -> 30 Minuten CDN-Cache.
     res.setHeader("Cache-Control", "s-maxage=1800, stale-while-revalidate=3600");
