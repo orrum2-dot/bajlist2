@@ -14,7 +14,7 @@ const { loadSheetEntries } = require("../lib/sheet");
 
 const RECENT_SEEDS = 5; // wie viele zuletzt geschaute Filme als Basis dienen
 const WATCH_SEEDS = 3; // wie viele Watchlist-Filme zusätzlich einfließen
-const MAX_RESULTS = 6; // wie viele Empfehlungen ans Frontend gehen
+const MAX_RESULTS = 15; // wie viele Empfehlungen ans Frontend gehen
 
 // Titel-Normalisierung fürs Herausfiltern: klein, ohne " (1999)" am Ende.
 function norm(title) {

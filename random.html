@@ -338,22 +338,10 @@
         tw: Math.random() * Math.PI * 2,
         hue: Math.random() < 0.35 ? Math.floor(Math.random() * 360) : null,
       }));
-      function glow(x, y, r, color) {
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, color);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, w, h);
-      }
       let t = Math.random() * 100;
       function frame() {
         t += 0.008;
         ctx.clearRect(0, 0, w, h);
-        const R = Math.max(w, h);
-        const hue = (t * 14) % 360;
-        glow(w * (0.55 + 0.32 * Math.cos(t)), h * (0.28 + 0.2 * Math.sin(t * 0.8)), R * 0.55, `hsla(${hue}, 75%, 60%, 0.075)`);
-        glow(w * (0.3 + 0.3 * Math.sin(t * 0.6)), h * (0.75 + 0.16 * Math.cos(t * 0.5)), R * 0.5, `hsla(${(hue + 120) % 360}, 75%, 60%, 0.065)`);
-        glow(w * (0.8 - 0.25 * Math.sin(t * 0.45)), h * (0.55 + 0.25 * Math.sin(t * 0.7)), R * 0.45, `hsla(${(hue + 240) % 360}, 75%, 62%, 0.06)`);
         for (const d of dust) {
           d.y -= d.s; d.drift += 0.004; d.tw += 0.035;
           if (d.y < -0.02) { d.y = 1.02; d.x = Math.random(); }

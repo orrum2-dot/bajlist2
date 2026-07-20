@@ -74,15 +74,14 @@
   <!-- Intro / boot screen -->
   <div id="intro"
        class="fixed inset-0 z-[70] flex items-center justify-center bg-ink transition-opacity duration-700">
-    <div class="px-6 text-center">
-      <p class="font-display text-[11px] font-medium uppercase tracking-[0.35em] text-amber">sys/init</p>
+    <div class="w-full max-w-md px-6">
+      <p class="font-display text-[11px] font-medium uppercase tracking-[0.35em] text-amber">bajlist cinema · sys/init</p>
       <h1 class="mt-3 font-display text-5xl font-bold tracking-tight">Bajlist</h1>
       <div id="boot-log"
-           class="mx-auto mt-6 h-24 w-64 text-left font-mono text-xs leading-6 text-muted"></div>
-      <button id="continue-btn" disabled
-              class="mt-2 rounded-md border border-amber/50 px-8 py-2.5 font-display text-sm font-semibold text-amber opacity-0 transition-all duration-500 hover:bg-amber/10">
-        continue
-      </button>
+           class="mt-6 h-40 w-full text-left font-mono text-xs leading-6 text-muted"></div>
+      <div class="mt-4 h-px w-full overflow-hidden bg-line">
+        <div id="boot-bar" class="h-full w-0 bg-amber transition-[width] duration-200 ease-linear"></div>
+      </div>
     </div>
   </div>
 
@@ -95,8 +94,8 @@
       <img src="/NOWWHAT-4x.gif" alt="" class="h-12 w-auto sm:h-14" />
     </h1>
     <a href="/random.html"
-       class="mt-4 inline-block text-sm text-muted underline decoration-line underline-offset-4 hover:text-amber">
-      🎲 Random Picker
+       class="mt-6 inline-flex items-center gap-2 rounded-lg border border-amber bg-amber/10 px-8 py-3.5 font-display text-base font-semibold text-amber shadow-lg shadow-amber/10 transition-all hover:bg-amber/20 hover:shadow-amber/20">
+      🎲 Click me for random suggestions
     </a>
   </header>
 
@@ -127,34 +126,36 @@
 
     <!-- ===== Section 1: History ===== -->
     <section aria-labelledby="watched-heading" class="pt-14">
-      <div class="flex items-baseline justify-between border-b border-line pb-4">
-        <h2 id="watched-heading"
-            class="font-display text-lg font-semibold tracking-wide">
-          Recently watched
+      <button type="button" data-toggle="watched-body"
+              class="flex w-full items-baseline justify-between border-b border-line pb-4 text-left">
+        <h2 id="watched-heading" class="font-display text-lg font-semibold tracking-wide">
+          <span class="toggle-caret mr-2 inline-block text-amber transition-transform">▾</span>Recently watched
         </h2>
         <span id="watched-count" class="text-xs text-muted"></span>
+      </button>
+      <div id="watched-body">
+        <div id="watched-grid"
+             class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        </div>
+        <p id="watched-status" class="mt-6 text-sm text-muted" hidden></p>
       </div>
-      <div id="watched-grid"
-           class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        <!-- filled by JS -->
-      </div>
-      <p id="watched-status" class="mt-6 text-sm text-muted" hidden></p>
     </section>
 
     <!-- ===== Section: Watchlist ===== -->
     <section aria-labelledby="watchlist-heading" class="pt-20">
-      <div class="flex items-baseline justify-between border-b border-line pb-4">
-        <h2 id="watchlist-heading"
-            class="font-display text-lg font-semibold tracking-wide">
-          Watchlist
+      <button type="button" data-toggle="watchlist-body"
+              class="flex w-full items-baseline justify-between border-b border-line pb-4 text-left">
+        <h2 id="watchlist-heading" class="font-display text-lg font-semibold tracking-wide">
+          <span class="toggle-caret mr-2 inline-block text-amber transition-transform">▾</span>Watchlist
         </h2>
         <span id="watchlist-count" class="text-xs text-muted"></span>
+      </button>
+      <div id="watchlist-body">
+        <div id="watchlist-grid"
+             class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+        </div>
+        <p id="watchlist-status" class="mt-6 text-sm text-muted" hidden></p>
       </div>
-      <div id="watchlist-grid"
-           class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        <!-- filled by JS -->
-      </div>
-      <p id="watchlist-status" class="mt-6 text-sm text-muted" hidden></p>
     </section>
 
     <!-- ===== Section 3: Recommendations ===== -->
@@ -519,7 +520,7 @@
       if (ev.key === "Escape" && !modal.hidden) closeModal();
     });
 
-    // ---------- Intro / boot screen ----------
+    // ---------- Intro / boot screen (auto, no click) ----------
     const SHOW_INTRO = true; // auf false stellen, um das Intro abzuschalten
 
     function initIntro() {
@@ -535,41 +536,44 @@
 
       const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
       const lines = [
-        "mounting /bajlist ... ok",
-        "loading posters ... ok",
-        "warming up projector ... ok",
-        "ready.",
+        "bajlist cinema — initializing",
+        "> mounting /bajlist ............ ok",
+        "> connecting to tmdb .......... ok",
+        "> loading watch history ....... ok",
+        "> loading watchlist ........... ok",
+        "> fetching recommendations .... ok",
+        "> threading the projector ..... ok",
+        "> dimming the lights .......... ok",
+        "> grab your popcorn 🍿",
+        "> enjoy the show.",
       ];
       const log = $("#boot-log");
-      const btn = $("#continue-btn");
+      const bar = $("#boot-bar");
 
-      const showButton = () => {
-        btn.disabled = false;
-        btn.classList.remove("opacity-0");
-        btn.focus();
-      };
-
-      if (reduced) {
-        lines.forEach((l) => log.appendChild(el("div", null, l)));
-        showButton();
-      } else {
-        let i = 0;
-        const timer = setInterval(() => {
-          if (i < lines.length) {
-            log.appendChild(el("div", null, lines[i++]));
-          } else {
-            clearInterval(timer);
-            showButton();
-          }
-        }, 280);
-      }
-
-      btn.addEventListener("click", () => {
+      const finish = () => {
         try { sessionStorage.setItem("bajlist-intro", "1"); } catch (e) {}
         intro.style.opacity = "0";
         setTimeout(() => intro.remove(), 700);
         startBackground();
-      });
+      };
+
+      if (reduced) {
+        lines.forEach((l) => log.appendChild(el("div", null, l)));
+        bar.style.width = "100%";
+        setTimeout(finish, 500);
+        return;
+      }
+
+      let i = 0;
+      const timer = setInterval(() => {
+        log.appendChild(el("div", null, lines[i]));
+        i++;
+        bar.style.width = Math.round((i / lines.length) * 100) + "%";
+        if (i >= lines.length) {
+          clearInterval(timer);
+          setTimeout(finish, 650); // kurz stehen lassen, dann ausblenden
+        }
+      }, 230);
     }
 
     // ---------- Animated background: projector glow + dust ----------
@@ -605,40 +609,10 @@
         hue: Math.random() < 0.35 ? Math.floor(Math.random() * 360) : null, // ein Teil farbig
       }));
 
-      function glow(x, y, r, color) {
-        const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-        g.addColorStop(0, color);
-        g.addColorStop(1, "rgba(0,0,0,0)");
-        ctx.fillStyle = g;
-        ctx.fillRect(0, 0, w, h);
-      }
-
       let t = Math.random() * 100;
       function frame() {
         t += 0.008;
         ctx.clearRect(0, 0, w, h);
-
-        // Drei wandernde Lichtkegel, deren Farben langsam durchs Spektrum drehen
-        const R = Math.max(w, h);
-        const hue = (t * 14) % 360;
-        glow(
-          w * (0.55 + 0.32 * Math.cos(t)),
-          h * (0.28 + 0.2 * Math.sin(t * 0.8)),
-          R * 0.55,
-          `hsla(${hue}, 75%, 60%, 0.075)`
-        );
-        glow(
-          w * (0.3 + 0.3 * Math.sin(t * 0.6)),
-          h * (0.75 + 0.16 * Math.cos(t * 0.5)),
-          R * 0.5,
-          `hsla(${(hue + 120) % 360}, 75%, 60%, 0.065)`
-        );
-        glow(
-          w * (0.8 - 0.25 * Math.sin(t * 0.45)),
-          h * (0.55 + 0.25 * Math.sin(t * 0.7)),
-          R * 0.45,
-          `hsla(${(hue + 240) % 360}, 75%, 62%, 0.06)`
-        );
 
         // Staub im Licht: überwiegend weiß, ein Teil farbig funkelnd
         for (const d of dust) {
@@ -686,6 +660,31 @@
       }
     }
     $("#search").addEventListener("input", applySearch);
+
+    // ---------- Collapsible sections ----------
+    function initCollapsibles() {
+      const toggles = document.querySelectorAll("[data-toggle]");
+      for (const t of toggles) {
+        const bodyId = t.dataset.toggle;
+        const body = document.getElementById(bodyId);
+        const caret = t.querySelector(".toggle-caret");
+        let collapsed = false;
+        try { collapsed = sessionStorage.getItem("collapse-" + bodyId) === "1"; } catch (e) {}
+
+        const apply = () => {
+          body.hidden = collapsed;
+          if (caret) caret.style.transform = collapsed ? "rotate(-90deg)" : "";
+        };
+        apply();
+
+        t.addEventListener("click", () => {
+          collapsed = !collapsed;
+          try { sessionStorage.setItem("collapse-" + bodyId, collapsed ? "1" : "0"); } catch (e) {}
+          apply();
+        });
+      }
+    }
+    initCollapsibles();
 
     initIntro();
     init();
