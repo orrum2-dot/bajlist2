@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bajlist · Latest Releases</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ink:   "#0C0E12", panel: "#12151B", line: "rgba(255,255,255,0.08)",
+            body:  "#EDEFF3", muted: "#98A1AD", amber: "#E3B04B",
+          },
+          fontFamily: {
+            display: ['"Space Grotesk"', "sans-serif"], sans: ["Inter", "sans-serif"],
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    [hidden] { display: none !important; }
+    html { background: #0C0E12; }
+    #bg-canvas { position: fixed; inset: 0; z-index: -1; opacity: 0.28; }
+    select {
+      background-color: #12151B; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 0.375rem; padding: 0.55rem 0.75rem; font-size: 0.875rem; color: #EDEFF3;
+    }
+    .skeleton {
+      background: linear-gradient(100deg, #12151B 40%, #1A1E26 50%, #12151B 60%);
+      background-size: 200% 100%; animation: shimmer 1.4s infinite linear;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    .poster-card img { transition: transform 0.45s cubic-bezier(0.2,0.6,0.2,1); }
+    .poster-card:hover img { transform: scale(1.05); }
+    .poster-card .overlay { opacity: 0; transition: opacity 0.3s ease; }
+    .poster-card:hover .overlay, .poster-card:focus-visible .overlay { opacity: 1; }
+    @media (prefers-reduced-motion: reduce) {
+      .skeleton { animation: none; }
+      .poster-card img, .poster-card .overlay { transition: none; }
+    }
+    :focus-visible { outline: 2px solid #E3B04B; outline-offset: 3px; }
+  </style>
+</head>
+
+<body class="font-sans text-body antialiased min-h-screen">
+  <canvas id="bg-canvas" aria-hidden="true"></canvas>
+
+  <header class="mx-auto max-w-6xl px-5 pt-14 pb-10 text-center">
+    <div class="flex items-center justify-between">
+      <span class="w-20"></span>
+      <h1 class="font-display text-4xl font-bold tracking-tight sm:text-5xl">Latest Releases</h1>
+      <a href="/" class="w-20 text-right text-sm text-muted underline decoration-line underline-offset-4 hover:text-body">← Bajlist</a>
+    </div>
+    <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-muted">
+      Movies that recently became available digitally — stream, rent or buy.
+    </p>
+  </header>
+
+  <main class="mx-auto max-w-6xl px-5 pb-24">
+    <div id="grid"
+         class="grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+    </div>
+    <p id="status" class="mt-8 text-center text-sm text-muted" hidden></p>
+    <div class="mt-10 text-center">
+      <button id="more" hidden
+              class="rounded-md border border-amber/50 px-8 py-2.5 font-display text-sm font-semibold text-amber transition-colors hover:bg-amber/10">
+        Load more
+      </button>
+    </div>
+  </main>
+
+  <!-- Modal -->
+  <div id="movie-modal" hidden class="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8">
+    <div class="absolute inset-0 bg-black/75 backdrop-blur-sm" data-close></div>
+    <div class="relative w-full max-w-2xl overflow-hidden rounded-lg border border-line bg-panel shadow-2xl"
+         role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button data-close aria-label="Close"
+              class="absolute right-3 top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-line bg-ink/80 text-muted transition-colors hover:text-body">✕</button>
+      <div class="flex max-h-[85vh] flex-col overflow-y-auto sm:flex-row sm:overflow-visible">
+        <div id="modal-poster" class="shrink-0 sm:w-56"></div>
+        <div class="min-w-0 p-6 sm:p-7">
+          <h3 id="modal-title" class="font-display text-2xl font-bold tracking-tight pr-8"></h3>
+          <p id="modal-meta" class="mt-2 text-sm text-muted"></p>
+          <p id="modal-genres" class="mt-2 font-display text-[11px] font-medium uppercase tracking-[0.2em] text-amber"></p>
+          <p id="modal-overview" class="mt-4 text-sm leading-relaxed text-body/90"></p>
+          <button id="modal-trailer-btn" hidden
+                  class="mt-4 inline-flex items-center gap-2 rounded-md border border-amber/50 px-4 py-2 font-display text-sm font-semibold text-amber transition-colors hover:bg-amber/10">▶ Watch trailer</button>
+          <div id="modal-trailer" hidden class="mt-4 aspect-video w-full overflow-hidden rounded-md border border-line"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto max-w-6xl px-5 py-6 text-xs text-muted">
+      Movie data &amp; posters by <a class="underline decoration-line underline-offset-4 hover:text-body" href="https://www.themoviedb.org" target="_blank" rel="noopener">TMDB</a>
+    </div>
+  </footer>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    function el(tag, cls, txt) {
+      const n = document.createElement(tag);
+      if (cls) n.className = cls;
+      if (txt) n.textContent = txt;
+      return n;
+    }
+    function posterOrPlaceholder(m, cls) {
+      if (m.poster) {
+        const img = el("img", cls);
+        img.src = m.poster; img.alt = `Movie poster: ${m.title}`; img.loading = "lazy";
+        return img;
+      }
+      const ph = el("div", cls + " flex items-center justify-center bg-panel text-center text-xs text-muted p-3");
+      ph.textContent = m.title;
+      return ph;
+    }
+
+    let page = 1, totalPages = 1, loading = false;
+
+    function addCards(movies) {
+      const grid = $("#grid");
+      for (const m of movies) {
+        const card = el("article", "poster-card group relative cursor-pointer overflow-hidden rounded-md border border-line bg-panel");
+        card.tabIndex = 0; card.setAttribute("role", "button");
+        card.addEventListener("click", () => openModal(m));
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openModal(m); }
+        });
+        const frame = el("div", "aspect-[2/3] overflow-hidden");
+        frame.appendChild(posterOrPlaceholder(m, "h-full w-full object-cover"));
+        card.appendChild(frame);
+        const ov = el("div", "overlay absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/30 to-transparent p-3");
+        ov.appendChild(el("h3", "font-display text-sm font-semibold leading-snug", m.title));
+        const meta = [m.year, ...(m.genres || [])].filter(Boolean).join(" · ");
+        if (meta) ov.appendChild(el("p", "mt-1 text-[11px] text-muted", meta));
+        card.appendChild(ov);
+        grid.appendChild(card);
+      }
+    }
+
+    function skeletons(n) {
+      const grid = $("#grid");
+      for (let i = 0; i < n; i++) grid.appendChild(el("div", "skeleton aspect-[2/3] rounded-md js-skel"));
+    }
+    function clearSkeletons() {
+      document.querySelectorAll(".js-skel").forEach((s) => s.remove());
+    }
+
+    async function load() {
+      if (loading || page > totalPages) return;
+      loading = true;
+      $("#more").disabled = true;
+      skeletons(12);
+      try {
+        const res = await fetch("/api/latest?page=" + page);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        clearSkeletons();
+        addCards(data.movies || []);
+        totalPages = data.totalPages || 1;
+        page++;
+        $("#more").hidden = page > totalPages;
+      } catch (err) {
+        clearSkeletons();
+        const s = $("#status");
+        s.textContent = "Couldn't load latest releases — is the site deployed with its API?";
+        s.hidden = false;
+      } finally {
+        loading = false;
+        $("#more").disabled = false;
+      }
+    }
+    $("#more").addEventListener("click", load);
+
+    // ---- Modal (mit Trailer) ----
+    const modal = $("#movie-modal");
+    function formatRuntime(min) {
+      if (!min) return null;
+      const h = Math.floor(min / 60), m = min % 60;
+      return h ? `${h}h ${m}m` : `${m}m`;
+    }
+    function openModal(movie) {
+      const pb = $("#modal-poster"); pb.innerHTML = "";
+      pb.appendChild(posterOrPlaceholder(movie, "h-full w-full object-cover aspect-[2/3]"));
+      $("#modal-title").textContent = movie.title;
+      $("#modal-meta").textContent = [movie.year, formatRuntime(movie.runtime), movie.rating ? `★ ${movie.rating} / 10` : null].filter(Boolean).join("  ·  ");
+      $("#modal-genres").textContent = (movie.genres || []).join(" · ");
+      $("#modal-overview").textContent = movie.overview || "No description available.";
+      const btn = $("#modal-trailer-btn"), box = $("#modal-trailer");
+      box.hidden = true; box.innerHTML = ""; btn.hidden = !movie.trailer;
+      btn.onclick = () => {
+        box.innerHTML = '<iframe class="h-full w-full" src="https://www.youtube-nocookie.com/embed/' + movie.trailer + '?autoplay=1" title="Trailer" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        box.hidden = false; btn.hidden = true;
+      };
+      modal.hidden = false;
+      document.body.style.overflow = "hidden";
+    }
+    function closeModal() {
+      modal.hidden = true; document.body.style.overflow = "";
+      $("#modal-trailer").innerHTML = ""; $("#modal-trailer").hidden = true;
+    }
+    modal.addEventListener("click", (e) => { if (e.target.closest("[data-close]")) closeModal(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !modal.hidden) closeModal(); });
+
+    load();
+
+    // ---- Emote-Regen-Hintergrund ----
+    (function startBackground() {
+      const canvas = $("#bg-canvas"), ctx = canvas.getContext("2d");
+      const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+      let w, h, dpr;
+      function resize() {
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        w = canvas.width = Math.floor(innerWidth * dpr);
+        h = canvas.height = Math.floor(innerHeight * dpr);
+        canvas.style.width = innerWidth + "px"; canvas.style.height = innerHeight + "px";
+      }
+      resize(); addEventListener("resize", resize);
+      const MAX = innerWidth < 640 ? 55 : 100, MOUSE_R = 90;
+      const mouse = { x: -9999, y: -9999, active: false };
+      addEventListener("mousemove", (e) => { mouse.x = e.clientX * dpr; mouse.y = e.clientY * dpr; mouse.active = true; });
+      addEventListener("mouseleave", () => { mouse.active = false; });
+      const rand = (a, b) => a + Math.random() * (b - a);
+      const DEMO_IDS = ["60ae958e229664e8667aea38","603cac391cd55c0014d989be","60ae65b29627f9aff4fd8bef","60ae7316f7ebf3dee5e454f8","60420a8b77137b000de9e675","6042de4577137b000de9e678","60aeab8df6a2c3b332d21139","60ae4ec30e35477634988c18","60ae3e54259ac5a73e56a426","6145ec4d0e35477634d5e13d"];
+      let images = [];
+      function toImages(urls) { images = urls.map((src) => { const i = new Image(); i.crossOrigin = "anonymous"; i.src = src; return i; }); }
+      const pickImg = () => images.length ? images[Math.floor(Math.random() * images.length)] : null;
+      function spawn(init) {
+        const size = rand(30, 52) * dpr;
+        return { img: pickImg(), x: rand(size, w - size), y: init ? rand(-size, h) : -size - rand(0, size * 3),
+          vx: rand(-0.15, 0.15) * dpr, vy: rand(0.35, 0.85) * dpr, size, rot: rand(0, Math.PI * 2), vr: rand(-0.008, 0.008),
+          sway: rand(0, Math.PI * 2), swaySpeed: rand(0.005, 0.015) };
+      }
+      let emotes = [], firstFill = true;
+      function topUp() { while (emotes.length < MAX) emotes.push(spawn(firstFill)); firstFill = false; }
+      function step(e) {
+        e.sway += e.swaySpeed; e.x += e.vx + Math.sin(e.sway) * 0.25 * dpr; e.y += e.vy; e.rot += e.vr;
+        if (mouse.active) {
+          const dx = e.x - mouse.x, dy = e.y - mouse.y, distSq = dx*dx + dy*dy, R = (MOUSE_R*dpr) + e.size*0.5;
+          if (distSq < R*R && distSq > 0.01) { const d = Math.sqrt(distSq), p = (1 - d/R)*1.4; e.vx += (dx/d)*p; e.vy += (dy/d)*p; }
+        }
+        e.vx *= 0.96; e.vy = e.vy*0.98 + 0.006*dpr;
+        if (e.x < e.size*0.5) { e.x = e.size*0.5; e.vx = Math.abs(e.vx)*0.6; }
+        if (e.x > w - e.size*0.5) { e.x = w - e.size*0.5; e.vx = -Math.abs(e.vx)*0.6; }
+        if (e.y - e.size > h) Object.assign(e, spawn(false));
+      }
+      function frame() {
+        ctx.clearRect(0, 0, w, h); topUp();
+        for (const e of emotes) {
+          step(e);
+          if (!e.img || !e.img.complete || e.img.naturalWidth === 0) continue;
+          ctx.save(); ctx.translate(e.x, e.y); ctx.rotate(e.rot);
+          ctx.drawImage(e.img, -e.size/2, -e.size/2, e.size, e.size); ctx.restore();
+        }
+        if (!reduced) requestAnimationFrame(frame);
+      }
+      toImages(DEMO_IDS.map((id) => "https://cdn.7tv.app/emote/" + id + "/2x.webp"));
+      frame();
+      (async () => {
+        async function tryLoad(url, pick) { const r = await fetch(url); if (!r.ok) throw new Error("HTTP " + r.status); const u = pick(await r.json()); if (!u.length) throw new Error("empty"); return u; }
+        let urls = null;
+        try { urls = await tryLoad("/api/emotes", (d) => d.emotes || []); }
+        catch (e1) {
+          try { urls = await tryLoad("https://7tv.io/v3/users/twitch/bazingaahpunk", (d) => ((d.emote_set && d.emote_set.emotes) || []).map((e) => "https://cdn.7tv.app/emote/" + e.id + "/2x.webp")); }
+          catch (e2) {}
+        }
+        if (urls) { toImages(urls); for (const e of emotes) e.img = pickImg(); }
+      })();
+    })();
+  </script>
+</body>
+</html>
