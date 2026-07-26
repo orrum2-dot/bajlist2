@@ -130,20 +130,33 @@
       <p id="search-status" class="mt-3 text-sm text-muted" hidden></p>
     </div>
 
-    <!-- ===== Section 1: History ===== -->
-    <section aria-labelledby="watched-heading" class="pt-14">
-      <button type="button" data-toggle="watched-body"
+    <!-- ===== Section: Movies ===== -->
+    <section aria-labelledby="movies-heading" class="pt-14">
+      <button type="button" data-toggle="movies-body"
               class="flex w-full items-baseline justify-between border-b border-line pb-4 text-left">
-        <h2 id="watched-heading" class="font-display text-lg font-semibold tracking-wide">
-          <span class="toggle-caret mr-2 inline-block text-amber transition-transform">▾</span>Recently watched
+        <h2 id="movies-heading" class="font-display text-lg font-semibold tracking-wide">
+          <span class="toggle-caret mr-2 inline-block text-amber transition-transform">▾</span>🎬 Movies
         </h2>
-        <span id="watched-count" class="text-xs text-muted"></span>
+        <span id="movies-count" class="text-xs text-muted"></span>
       </button>
-      <div id="watched-body">
-        <div id="watched-grid"
-             class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-        </div>
-        <p id="watched-status" class="mt-6 text-sm text-muted" hidden></p>
+      <div id="movies-body">
+        <div id="movies-grid" class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"></div>
+        <p id="movies-status" class="mt-6 text-sm text-muted" hidden></p>
+      </div>
+    </section>
+
+    <!-- ===== Section: Shows ===== -->
+    <section aria-labelledby="shows-heading" class="pt-20">
+      <button type="button" data-toggle="shows-body"
+              class="flex w-full items-baseline justify-between border-b border-line pb-4 text-left">
+        <h2 id="shows-heading" class="font-display text-lg font-semibold tracking-wide">
+          <span class="toggle-caret mr-2 inline-block text-amber transition-transform">▾</span>📺 Shows
+        </h2>
+        <span id="shows-count" class="text-xs text-muted"></span>
+      </button>
+      <div id="shows-body">
+        <div id="shows-grid" class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"></div>
+        <p id="shows-status" class="mt-6 text-sm text-muted" hidden></p>
       </div>
     </section>
 
@@ -231,17 +244,20 @@
   <script>
     // ---------- Demo data (shown only when the API isn't reachable) ----------
     const DEMO_MOVIES = [
-      { title: "Blade Runner 2049", year: "2017", genres: ["Sci-Fi", "Drama"], poster: null, rating: 7.6, runtime: 164, overview: "A young blade runner uncovers a long-buried secret that leads him to track down former blade runner Rick Deckard." },
-      { title: "Whiplash", year: "2014", genres: ["Drama", "Music"], poster: null, rating: 8.4, runtime: 107, overview: "A promising young drummer enrolls at a cut-throat music conservatory where an abusive instructor pushes him to his limits." },
-      { title: "Spirited Away", year: "2001", genres: ["Animation", "Fantasy"], poster: null, rating: 8.5, runtime: 125, overview: "A young girl wanders into a world ruled by gods and witches, where humans are changed into beasts." },
-      { title: "Mad Max: Fury Road", year: "2015", genres: ["Action"], poster: null, rating: 7.6, runtime: 121, overview: "In a post-apocalyptic wasteland, Max teams up with Furiosa to flee from a tyrant and his army in an armored tanker truck." },
-      { title: "Parasite", year: "2019", genres: ["Thriller", "Drama"], poster: null, rating: 8.5, runtime: 133, overview: "A poor family schemes to become employed by a wealthy household by infiltrating their domestic life." },
-      { title: "The Grand Budapest Hotel", year: "2014", genres: ["Comedy"], poster: null, rating: 8.0, runtime: 100, overview: "A legendary concierge and his protégé become entangled in the theft of a priceless painting between the wars." },
+      { type: "movie", title: "Blade Runner 2049", year: "2017", genres: ["Sci-Fi", "Drama"], poster: null, rating: 7.6, runtime: 164, overview: "A young blade runner uncovers a long-buried secret that leads him to track down former blade runner Rick Deckard." },
+      { type: "movie", title: "Whiplash", year: "2014", genres: ["Drama", "Music"], poster: null, rating: 8.4, runtime: 107, overview: "A promising young drummer enrolls at a cut-throat music conservatory where an abusive instructor pushes him to his limits." },
+      { type: "movie", title: "Parasite", year: "2019", genres: ["Thriller", "Drama"], poster: null, rating: 8.5, runtime: 133, overview: "A poor family schemes to become employed by a wealthy household by infiltrating their domestic life." },
+      { type: "movie", title: "Mad Max: Fury Road", year: "2015", genres: ["Action"], poster: null, rating: 7.6, runtime: 121, overview: "In a post-apocalyptic wasteland, Max teams up with Furiosa to flee from a tyrant." },
+    ];
+    const DEMO_SHOWS = [
+      { type: "tv", title: "Severance", year: "2022", genres: ["Drama", "Sci-Fi"], poster: null, rating: 8.4, seasons: 2, episodes: 19, progress: { season: 2, episode: 5 }, overview: "Employees at Lumon Industries have surgically divided their memories between work and personal life." },
+      { type: "tv", title: "Breaking Bad", year: "2008", genres: ["Drama", "Crime"], poster: null, rating: 8.9, seasons: 5, episodes: 62, progress: { season: 3, episode: 7 }, overview: "A chemistry teacher diagnosed with cancer turns to manufacturing drugs to secure his family's future." },
+      { type: "tv", title: "Arcane", year: "2021", genres: ["Animation", "Action"], poster: null, rating: 8.7, seasons: 2, episodes: 18, progress: { season: 1, episode: 3 }, overview: "The origins of two iconic League champions and the power that will tear them apart." },
     ];
     const DEMO_WATCHLIST = [
-      { title: "Dune: Part Two", year: "2024", genres: ["Sci-Fi", "Adventure"], poster: null, rating: 8.2, runtime: 167, overview: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." },
-      { title: "Oldboy", year: "2003", genres: ["Thriller", "Mystery"], poster: null, rating: 8.3, runtime: 120, overview: "After being imprisoned for fifteen years without explanation, a man is released and seeks the truth behind his captivity." },
-      { title: "Everything Everywhere All at Once", year: "2022", genres: ["Adventure", "Comedy"], poster: null, rating: 7.8, runtime: 139, overview: "An aging Chinese immigrant is swept up in an insane adventure where she alone can save the multiverse." },
+      { type: "movie", title: "Dune: Part Two", year: "2024", genres: ["Sci-Fi", "Adventure"], poster: null, rating: 8.2, runtime: 167, overview: "Paul Atreides unites with Chani and the Fremen while seeking revenge against the conspirators who destroyed his family." },
+      { type: "movie", title: "Oldboy", year: "2003", genres: ["Thriller", "Mystery"], poster: null, rating: 8.3, runtime: 120, overview: "After being imprisoned for fifteen years without explanation, a man is released and seeks the truth behind his captivity." },
+      { type: "movie", title: "Everything Everywhere All at Once", year: "2022", genres: ["Adventure", "Comedy"], poster: null, rating: 7.8, runtime: 139, overview: "An aging Chinese immigrant is swept up in an insane adventure where she alone can save the multiverse." },
     ];
 
     // ---------- Helpers ----------
@@ -277,7 +293,7 @@
       const grid = $(gridSel);
       grid.innerHTML = "";
       if (countSel) {
-        $(countSel).textContent = movies.length ? `${movies.length} movies` : "";
+        $(countSel).textContent = movies.length ? `${movies.length}` : "";
       }
 
       if (!movies.length) {
@@ -312,6 +328,16 @@
           posterOrPlaceholder(m, "h-full w-full object-cover")
         );
         card.appendChild(frame);
+
+        // Serien-Fortschritt als Badge oben rechts (z. B. "S2 E5")
+        if (m.type === "tv" && m.progress) {
+          const badge = el(
+            "div",
+            "absolute right-1.5 top-1.5 rounded bg-amber px-1.5 py-0.5 font-display text-[10px] font-bold text-ink",
+            `S${m.progress.season} E${m.progress.episode}`
+          );
+          card.appendChild(badge);
+        }
 
         // Hover overlay with year & genre
         const overlay = el(
@@ -369,7 +395,7 @@
 
     // ---------- Skeletons, status & loading ----------
     function renderSkeletons() {
-      for (const sel of ["#watched-grid", "#watchlist-grid"]) {
+      for (const sel of ["#movies-grid", "#shows-grid", "#watchlist-grid"]) {
         const grid = $(sel);
         for (let i = 0; i < 6; i++) {
           grid.appendChild(el("div", "skeleton aspect-[2/3] rounded-md"));
@@ -398,7 +424,8 @@
         loadJson("/api/recommendations"),
       ]);
 
-      $("#watched-grid").innerHTML = "";
+      $("#movies-grid").innerHTML = "";
+      $("#shows-grid").innerHTML = "";
       $("#watchlist-grid").innerHTML = "";
 
       // If the API isn't reachable (e.g. static preview without serverless
@@ -406,13 +433,16 @@
       const demoMode = moviesResult.status === "rejected";
       if (demoMode) $("#demo-banner").hidden = false;
 
+      const movies = demoMode ? DEMO_MOVIES : moviesResult.value.movies || [];
+      const shows = demoMode ? DEMO_SHOWS : moviesResult.value.shows || [];
+
       renderMovieGrid(
-        demoMode ? DEMO_MOVIES : moviesResult.value.movies || [],
-        "#watched-grid",
-        "#watched-count",
-        "#watched-status",
-        "No movies yet. Add the first one in chat with !addfilm Title.",
-        "Watched on"
+        movies, "#movies-grid", "#movies-count", "#movies-status",
+        "No movies yet. Add one with !addfilm Title.", "Watched on"
+      );
+      renderMovieGrid(
+        shows, "#shows-grid", "#shows-count", "#shows-status",
+        "No shows yet. Add one with !addfilm Title S1E1.", "Watched on"
       );
 
       if (watchResult.status === "fulfilled") {
@@ -471,7 +501,10 @@
 
       const meta = [
         movie.year,
-        formatRuntime(movie.runtime),
+        movie.type === "tv" && movie.seasons
+          ? `${movie.seasons} season${movie.seasons > 1 ? "s" : ""}` +
+            (movie.episodes ? ` · ${movie.episodes} eps` : "")
+          : formatRuntime(movie.runtime),
         movie.rating ? `★ ${movie.rating} / 10` : null,
       ]
         .filter(Boolean)
@@ -484,6 +517,9 @@
         movie.overview || "No description available.";
 
       const addedParts = [];
+      if (movie.type === "tv" && movie.progress) {
+        addedParts.push(`You're on S${movie.progress.season} E${movie.progress.episode}`);
+      }
       if (movie.because) addedParts.push(`Because we watched: ${movie.because}`);
       if (movie.date) addedParts.push(`${movie._dateLabel || "Watched on"}: ${movie.date}`);
       if (movie.addedBy) addedParts.push(`added by ${movie.addedBy}`);
