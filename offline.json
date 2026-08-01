@@ -1,6 +1,8 @@
 {
-  "routes": [
-    { "src": "/offline.html", "dest": "/offline.html" },
-    { "src": "/(.*)", "status": 302, "headers": { "Location": "/offline.html" } }
+  "redirects": [
+    { "source": "/", "destination": "/offline.html", "permanent": false },
+    { "source": "/index.html", "destination": "/offline.html", "permanent": false },
+    { "source": "/random.html", "destination": "/offline.html", "permanent": false },
+    { "source": "/latest.html", "destination": "/offline.html", "permanent": false }
   ]
 }
