@@ -1,0 +1,10 @@
+{
+  "routes": [
+    {
+      "src": "/.*",
+      "status": 503,
+      "headers": { "content-type": "text/html; charset=utf-8" },
+      "dest": "data:text/html,<html><head><title>Bajlist</title><style>html,body{margin:0;height:100%;background:%230C0E12;color:%23EDEFF3;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;text-align:center}h1{font-size:2rem}.a{color:%23E3B04B}</style></head><body><div><h1>🎬 Bajlist is <span class=%22a%22>taking a break</span></h1><p>Be right back.</p></div></body></html>"
+    }
+  ]
+}
