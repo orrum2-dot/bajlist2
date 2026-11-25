@@ -1,10 +1,4 @@
 {
-  "redirects": [
-    { "source": "/", "destination": "/offline.html", "permanent": false },
-    { "source": "/index.html", "destination": "/offline.html", "permanent": false },
-    { "source": "/random.html", "destination": "/offline.html", "permanent": false },
-    { "source": "/latest.html", "destination": "/offline.html", "permanent": false }
-  ],
   "functions": {
     "api/movies.js": { "maxDuration": 60 },
     "api/watchlist.js": { "maxDuration": 60 }
