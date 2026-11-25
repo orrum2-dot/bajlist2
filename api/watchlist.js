@@ -1,12 +1,11 @@
 // api/watchlist.js
-// Liefert die Watchlist ("noch zu sehen").
-// Quelle: Tabellenblatt "Watchlist" des Google Sheets (befüllt via !watch),
+// Liefert die KOMPLETTE Watchlist ("noch zu sehen").
+// Quelle: Tabellenblatt "Watchlist" des Google Sheets (befüllt via !addlist),
 // veröffentlicht als eigener CSV-Link (SHEET_WATCH_CSV_URL).
+// Die Seitenfunktion passiert im Frontend.
 
 const { lookupMovie, mapLimit } = require("../lib/tmdb");
 const { loadSheetEntries } = require("../lib/sheet");
-
-const MAX_MOVIES = 60;
 
 module.exports = async function handler(req, res) {
   try {
@@ -17,15 +16,20 @@ module.exports = async function handler(req, res) {
         .json({ error: "SHEET_WATCH_CSV_URL ist nicht gesetzt." });
     }
 
-    const entries = await loadSheetEntries(sheetUrl, MAX_MOVIES);
+    const entries = await loadSheetEntries(sheetUrl);
 
-    // Max. 8 TMDB-Lookups gleichzeitig, um das Rate-Limit nicht zu reißen
-    const watchlist = await mapLimit(entries, 8, async (e) => {
-      const info = await lookupMovie(e.rawTitle);
-      return { ...info, addedBy: e.addedBy, date: e.date };
-    });
+    // Jeden Titel nur einmal nachschlagen, max. 8 TMDB-Lookups gleichzeitig
+    const uniqueTitles = [...new Set(entries.map((e) => e.rawTitle))];
+    const infos = await mapLimit(uniqueTitles, 8, (t) => lookupMovie(t));
+    const infoByTitle = new Map(uniqueTitles.map((t, i) => [t, infos[i]]));
 
-    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=600");
+    const watchlist = entries.map((e) => ({
+      ...infoByTitle.get(e.rawTitle),
+      addedBy: e.addedBy,
+      date: e.date,
+    }));
+
+    res.setHeader("Cache-Control", "s-maxage=300, stale-while-revalidate=86400");
     return res.status(200).json({ watchlist });
   } catch (err) {
     console.error("Fehler in /api/watchlist:", err);

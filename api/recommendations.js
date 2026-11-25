@@ -32,11 +32,11 @@ module.exports = async function handler(req, res) {
     }
 
     // 1) Historie laden (großzügig viele, fürs Filtern) + Watchlist (optional)
-    const history = await loadSheetEntries(historyUrl, 100);
+    const history = await loadSheetEntries(historyUrl);
     let watchlist = [];
     if (process.env.SHEET_WATCH_CSV_URL) {
       try {
-        watchlist = await loadSheetEntries(process.env.SHEET_WATCH_CSV_URL, 50);
+        watchlist = await loadSheetEntries(process.env.SHEET_WATCH_CSV_URL);
       } catch (err) {
         console.error("Watchlist für Empfehlungen nicht ladbar:", err.message);
       }
@@ -52,8 +52,18 @@ module.exports = async function handler(req, res) {
     );
 
     // 2) Seeds: neueste Historie stark, Watchlist schwach gewichtet.
+    // Rewatches würden sonst denselben Film mehrfach als Seed nehmen -> entdoppeln.
+    const uniqueByTitle = (list) => {
+      const seen = new Set();
+      return list.filter((e) => {
+        const k = norm(e.rawTitle);
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      });
+    };
     const seeds = [
-      ...history.slice(0, RECENT_SEEDS).map((e, i) => ({
+      ...uniqueByTitle(history).slice(0, RECENT_SEEDS).map((e, i) => ({
         rawTitle: e.rawTitle,
         weight: RECENT_SEEDS - i, // neuester Film = höchstes Gewicht
       })),
