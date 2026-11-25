@@ -60,6 +60,19 @@
     }
 
     :focus-visible { outline: 2px solid #E3B04B; outline-offset: 3px; }
+
+    /* Seitenfunktion unter den Poster-Grids */
+    .pager button {
+      min-width: 2.25rem; height: 2.25rem; padding: 0 0.6rem;
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 0.375rem;
+      background: #12151B; color: #98A1AD;
+      font-family: "Space Grotesk", sans-serif; font-size: 0.8rem; font-weight: 600;
+      transition: color .2s, border-color .2s;
+    }
+    .pager button:hover:not(:disabled) { color: #E3B04B; border-color: rgba(227,176,75,0.5); }
+    .pager button[aria-current="page"] { color: #0C0E12; background: #E3B04B; border-color: #E3B04B; }
+    .pager button:disabled { opacity: 0.35; cursor: default; }
+    .pager .gap { color: #98A1AD; padding: 0 0.25rem; font-size: 0.8rem; }
     /* Animierter Hintergrund: Canvas liegt hinter dem Inhalt */
     html { background: #0C0E12; }
     #bg-canvas { position: fixed; inset: 0; z-index: -1; opacity: 0.28; }
@@ -141,6 +154,7 @@
       </button>
       <div id="movies-body">
         <div id="movies-grid" class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"></div>
+        <nav id="movies-pager" class="pager mt-10 flex flex-wrap items-center justify-center gap-1.5" aria-label="Pages" hidden></nav>
         <p id="movies-status" class="mt-6 text-sm text-muted" hidden></p>
       </div>
     </section>
@@ -156,6 +170,7 @@
       </button>
       <div id="shows-body">
         <div id="shows-grid" class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6"></div>
+        <nav id="shows-pager" class="pager mt-10 flex flex-wrap items-center justify-center gap-1.5" aria-label="Pages" hidden></nav>
         <p id="shows-status" class="mt-6 text-sm text-muted" hidden></p>
       </div>
     </section>
@@ -173,6 +188,7 @@
         <div id="watchlist-grid"
              class="mt-8 grid grid-cols-2 gap-x-4 gap-y-8 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
         </div>
+        <nav id="watchlist-pager" class="pager mt-10 flex flex-wrap items-center justify-center gap-1.5" aria-label="Pages" hidden></nav>
         <p id="watchlist-status" class="mt-6 text-sm text-muted" hidden></p>
       </div>
     </section>
@@ -339,6 +355,17 @@
           card.appendChild(badge);
         }
 
+        // Mehrfach geschaut: "2×"-Badge oben links
+        if (m.timesWatched > 1) {
+          const rewatch = el(
+            "div",
+            "absolute left-1.5 top-1.5 rounded border border-amber/60 bg-black/70 px-1.5 py-0.5 font-display text-[10px] font-bold text-amber",
+            `${m.timesWatched}×`
+          );
+          rewatch.title = `Watched ${m.timesWatched} times`;
+          card.appendChild(rewatch);
+        }
+
         // Hover overlay with year & genre
         const overlay = el(
           "div",
@@ -415,6 +442,90 @@
       return res.json();
     }
 
+    // ---------- Pagination (Movies, Shows, Watchlist) ----------
+    const PAGE_SIZE = 24; // 4 volle Reihen auf großen Screens
+    const paged = {}; // key -> { items, page, query, opts }
+
+    function matchesQuery(m, q) {
+      if (!q) return true;
+      return [m.title, m.year, ...(m.genres || [])]
+        .filter(Boolean).join(" ").toLowerCase().includes(q);
+    }
+
+    function setupPaged(key, items, opts) {
+      paged[key] = { items, page: 1, query: "", opts };
+      renderPaged(key);
+    }
+
+    function renderPaged(key, scrollIntoView) {
+      const st = paged[key];
+      if (!st) return;
+      const { items, opts } = st;
+      const filtered = items.filter((m) => matchesQuery(m, st.query));
+      const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+      st.page = Math.min(Math.max(1, st.page), pages);
+      const start = (st.page - 1) * PAGE_SIZE;
+
+      // Leere Liste -> Hinweistext; leeres Suchergebnis -> nur Grid leeren
+      if (!items.length) {
+        renderMovieGrid([], `#${key}-grid`, null, `#${key}-status`, opts.emptyMsg, opts.dateLabel);
+      } else {
+        renderMovieGrid(filtered.slice(start, start + PAGE_SIZE), `#${key}-grid`, null, null, "", opts.dateLabel);
+        $(`#${key}-status`).hidden = true;
+      }
+
+      $(`#${key}-count`).textContent = !items.length
+        ? ""
+        : st.query
+        ? `${filtered.length} of ${items.length}`
+        : `${items.length}`;
+
+      renderPager(key, pages);
+
+      if (scrollIntoView) {
+        $(`#${key}-grid`).closest("section").scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+
+    // Seitenzahlen mit "…": 1 … 4 5 [6] 7 8 … 20
+    function pageList(current, total) {
+      const set = new Set([1, total]);
+      for (let p = current - 2; p <= current + 2; p++) if (p >= 1 && p <= total) set.add(p);
+      const sorted = [...set].sort((a, b) => a - b);
+      const out = [];
+      sorted.forEach((p, i) => {
+        if (i && p - sorted[i - 1] > 1) out.push("…");
+        out.push(p);
+      });
+      return out;
+    }
+
+    function renderPager(key, pages) {
+      const nav = $(`#${key}-pager`);
+      const st = paged[key];
+      nav.innerHTML = "";
+      nav.hidden = pages <= 1;
+      if (pages <= 1) return;
+
+      const go = (p) => { st.page = p; renderPaged(key, true); };
+      const btn = (label, page, { disabled, current, aria } = {}) => {
+        const b = el("button", "", label);
+        b.type = "button";
+        if (aria) b.setAttribute("aria-label", aria);
+        if (current) b.setAttribute("aria-current", "page");
+        b.disabled = !!disabled;
+        if (!disabled && !current) b.addEventListener("click", () => go(page));
+        return b;
+      };
+
+      nav.appendChild(btn("‹", st.page - 1, { disabled: st.page === 1, aria: "Previous page" }));
+      for (const p of pageList(st.page, pages)) {
+        if (p === "…") nav.appendChild(el("span", "gap", "…"));
+        else nav.appendChild(btn(String(p), p, { current: p === st.page, aria: `Page ${p}` }));
+      }
+      nav.appendChild(btn("›", st.page + 1, { disabled: st.page === pages, aria: "Next page" }));
+    }
+
     async function init() {
       renderSkeletons();
 
@@ -436,32 +547,18 @@
       const movies = demoMode ? DEMO_MOVIES : moviesResult.value.movies || [];
       const shows = demoMode ? DEMO_SHOWS : moviesResult.value.shows || [];
 
-      renderMovieGrid(
-        movies, "#movies-grid", "#movies-count", "#movies-status",
-        "No movies yet. Add one with !addfilm Title.", "Watched on"
-      );
-      renderMovieGrid(
-        shows, "#shows-grid", "#shows-count", "#shows-status",
-        "No shows yet. Add one with !addfilm Title S1E1.", "Watched on"
-      );
+      setupPaged("movies", movies, {
+        emptyMsg: "No movies yet. Add one with !addfilm Title.", dateLabel: "Watched on",
+      });
+      setupPaged("shows", shows, {
+        emptyMsg: "No shows yet. Add one with !addfilm Title S1E1.", dateLabel: "Watched on",
+      });
 
-      if (watchResult.status === "fulfilled") {
-        renderMovieGrid(
-          watchResult.value.watchlist || [],
-          "#watchlist-grid",
-          "#watchlist-count",
-          "#watchlist-status",
-          "The watchlist is empty. Add a movie in chat with !addlist Title.",
-          "Added on"
-        );
-      } else if (demoMode) {
-        renderMovieGrid(
-          DEMO_WATCHLIST,
-          "#watchlist-grid",
-          "#watchlist-count",
-          "#watchlist-status",
-          "",
-          "Added on"
+      if (watchResult.status === "fulfilled" || demoMode) {
+        setupPaged(
+          "watchlist",
+          watchResult.status === "fulfilled" ? watchResult.value.watchlist || [] : DEMO_WATCHLIST,
+          { emptyMsg: "The watchlist is empty. Add a movie in chat with !addlist Title.", dateLabel: "Added on" }
         );
       } else {
         // Watchlist (noch) nicht eingerichtet -> Sektion sauber ausblenden
@@ -521,7 +618,13 @@
         addedParts.push(`You're on S${movie.progress.season} E${movie.progress.episode}`);
       }
       if (movie.because) addedParts.push(`Because we watched: ${movie.because}`);
-      if (movie.date) addedParts.push(`${movie._dateLabel || "Watched on"}: ${movie.date}`);
+      if (movie.timesWatched > 1) {
+        addedParts.push(`Watched ${movie.timesWatched}× · last time: ${movie.date || "?"}`);
+        const earlier = (movie.dates || []).slice(1).filter(Boolean);
+        if (earlier.length) addedParts.push(`before: ${earlier.join(", ")}`);
+      } else if (movie.date) {
+        addedParts.push(`${movie._dateLabel || "Watched on"}: ${movie.date}`);
+      }
       if (movie.addedBy) addedParts.push(`added by ${movie.addedBy}`);
       $("#modal-added").textContent = addedParts.join("  ·  ");
       $("#modal-added").hidden = addedParts.length === 0;
@@ -765,8 +868,19 @@
     // ---------- Live search across all sections ----------
     function applySearch() {
       const q = $("#search").value.trim().toLowerCase();
-      const cards = document.querySelectorAll("[data-search]");
       let visible = 0;
+
+      // Movies/Shows/Watchlist: über ALLE Seiten suchen, Treffer ab Seite 1
+      for (const key of Object.keys(paged)) {
+        const st = paged[key];
+        st.query = q;
+        st.page = 1;
+        renderPaged(key);
+        visible += st.items.filter((m) => matchesQuery(m, q)).length;
+      }
+
+      // Übrige Karten (Empfehlungen) wie bisher direkt filtern
+      const cards = document.querySelectorAll("#recs-grid [data-search]");
       for (const card of cards) {
         const match = !q || card.dataset.search.includes(q);
         card.hidden = !match;
